@@ -79,3 +79,24 @@ Stage Summary:
 - Green tiles now show "ВП" for active tasks without Q:N queue tag
 - Cache-busting ?v=3 ensures browsers load fresh code
 - Task #6372 will now show as green tile with "ВП" label in Timur's row on April 17
+
+---
+Task ID: 4
+Agent: Main Agent
+Task: Fix ВП tasks showing green instead of orange
+
+Work Log:
+- User sent screenshot with red X on Александр's ВП tile (was green) and red box on Саша's tile
+- VLM analysis confirmed: green "ВП" tiles should be ORANGE (вне плана = out of plan)
+- Added .tw-sq.outplan CSS class with orange styling (rgba(255,140,66,.15))
+- Changed _twBuildSquare logic: order===0 + active → "outplan" (orange), order>0 + active → "active" (green)
+- Updated overlay: ВП tasks show orange badge "Выполняется (ВП)"
+- Pushed to GitHub + cache-busting ?v=4
+- Verified deployment: all CSS classes and logic present on Vercel
+
+Stage Summary:
+- ВП (out-of-plan) tasks now show as ORANGE tiles with "ВП" label
+- Queue tasks (Q:N) that are active show as GREEN tiles with queue number
+- Pending tasks show as GREY
+- Blocked tasks show as RED
+- Task #6372 (Тимур, ВП) will now appear as ORANGE tile on April 17

@@ -42,3 +42,22 @@ Stage Summary:
 - Task #6372 (dev=82 Тимур, deadline 2026-04-02) should now appear in today's cell as active
 - Also fixed rendering: active tasks from filterActive without week deadline → today's cell
 - Vercel should auto-deploy from GitHub push
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Verify fix is deployed and working on Vercel
+
+Work Log:
+- Verified Vercel deployed new tab-work.js with REAL_STATUS fix (SHA: d71e48cc)
+- Tested all API calls through Vercel proxy: filterActive returns 7 active tasks including #6372
+- Simulated full rendering pipeline: #6372 correctly placed in cell 82_2026-04-17 (Тимур, today)
+- Found browser cache issue: added ?v=2 cache-busting to index.html and dev.html
+- Updated dev.html with cache-busting for dev-page.js?v=2
+- All code paths verified: filterActive, filterWeek, client filter, _twBuildSquare, _twOpenTaskOverlay all use REAL_STATUS
+
+Stage Summary:
+- Fix is deployed and verified through Vercel proxy
+- Browser cache was likely the issue - ?v=2 cache-busting added
+- Task #6372 (Тимур, "Сверка серийных номеров") should now appear as green tile in today's cell
+- User needs to hard-refresh (Ctrl+Shift+R) or the ?v=2 will force fresh load

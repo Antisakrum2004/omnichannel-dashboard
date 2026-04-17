@@ -61,3 +61,21 @@ Stage Summary:
 - Browser cache was likely the issue - ?v=2 cache-busting added
 - Task #6372 (Тимур, "Сверка серийных номеров") should now appear as green tile in today's cell
 - User needs to hard-refresh (Ctrl+Shift+R) or the ?v=2 will force fresh load
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: Fix empty green tiles for active tasks without Q:N tag
+
+Work Log:
+- User sent screenshot showing green tile at Timur's row on April 17 with no text
+- Identified that `_twBuildSquare` shows `esc(order || '')` which is empty when order=0
+- Tasks without Q:N tag had queue order = 0, resulting in empty green tiles
+- Fixed: changed to `order > 0 ? String(order) : 'ВП'` (ВП = "вне плана" = out of plan)
+- Pushed fix to GitHub + updated cache-busting to ?v=3
+- Verified deployment on Vercel
+
+Stage Summary:
+- Green tiles now show "ВП" for active tasks without Q:N queue tag
+- Cache-busting ?v=3 ensures browsers load fresh code
+- Task #6372 will now show as green tile with "ВП" label in Timur's row on April 17

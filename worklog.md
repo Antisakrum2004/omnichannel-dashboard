@@ -143,3 +143,28 @@ Work Log:
 Stage Summary:
 - All 8 verification checks passed
 - Commits: 8b0fd787 (tab-work.js), 676dd441 (index.html), b8b4667d (dev.html)
+
+---
+Task ID: 3
+Agent: main
+Task: Fix "В работе" to show FIRST start from task log, not last DATE_START
+
+Work Log:
+- Discovered that DATE_START in Bitrix24 API = LAST start date, not first
+- Task #6618: DATE_START=17-Apr, but first start was 14-Apr (from log)
+- Found task.logitem.list API via POST with TASK_ID parameter
+- Added _twLoadFirstStart(taskId): async function that fetches task log and finds first STATUS→3 transition
+- Added _twFmtDurationFrom(isoDate): formats duration from any ISO date to now
+- Replaced _twFmtInWork with _twFmtDurationFrom for cleaner separation
+- Speed block now shows "..." placeholder, then updates async after log fetch
+- Sub-label now shows actual date of first start: "с 14 апр 07:43"
+- Fallback to DATE_START if log unavailable
+- Using bxPost() for API calls through Vercel proxy
+- Cache-bust updated to ?v=6
+- Pushed: tab-work.js (fedf4f83), index.html (7573c066), dev.html (f2a95505)
+
+Stage Summary:
+- #6618: was "5ч 29м" (wrong) → now "3дн 11ч с 14 апр 07:43" (correct!)
+- #6214: "22дн 7ч с 26 мар 11:58" (correct!)
+- #6372: "16дн 1ч с 01 апр 17:33" (correct!)
+- All verified against real Bitrix24 API data

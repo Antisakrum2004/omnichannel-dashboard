@@ -18,3 +18,27 @@ Stage Summary:
 - All 5 changes (10-14) successfully applied and pushed
 - Vercel auto-deploy should trigger from main branch push
 - 3 files modified: dev.html, js/dev-page.js, js/tab-work.js (110 insertions, 14 deletions)
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix active tasks not visible in manager dashboard (task #6372)
+
+Work Log:
+- Analyzed console log: Active STATUS=3/4 query found only 1 task (#6692) but missed task #6372
+- Tested Bitrix24 API directly: tasks.task.get returns #6372 correctly, but tasks.task.list with filter STATUS=3 misses it
+- Discovered that Bitrix24 API has a bug where `STATUS` filter doesn't correctly match tasks with subStatus != status
+- Found that `REAL_STATUS` filter works correctly and returns all 7 active tasks including #6372
+- Fixed `_twLoadQueueTasks()`: changed `STATUS: [3, 4]` → `REAL_STATUS: [3, 4]` in filterActive
+- Fixed `!STATUS: [5, 7]` → `!REAL_STATUS: [5, 6, 7]` in filterWeek (added 6 for auto-completed)
+- Added `REAL_STATUS` to select fields
+- Fixed `_twRenderGrid()`: active tasks without deadline in current week now render in today's cell
+- Fixed `_twBuildSquare()`: uses REAL_STATUS for active/pending classification
+- Fixed `_twOpenTaskOverlay()`: uses REAL_STATUS for status display
+- Pushed updated tab-work.js to GitHub repo (SHA: d71e48cc48428e8ebc2fdd74fee2b980f6aa9d6d)
+
+Stage Summary:
+- ROOT CAUSE: Bitrix24 API `STATUS` filter is broken for tasks where subStatus differs from status; `REAL_STATUS` filter works correctly
+- Task #6372 (dev=82 Тимур, deadline 2026-04-02) should now appear in today's cell as active
+- Also fixed rendering: active tasks from filterActive without week deadline → today's cell
+- Vercel should auto-deploy from GitHub push

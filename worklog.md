@@ -121,3 +121,25 @@ Stage Summary:
 - All 5 active tasks now appear in today (2026-04-17): #6214(Артём), #6372(Ерлан), #6618(Тимур), #6628(Артём), #6698(Мурат)
 - Key change: cellDate assignment priority = active → today, then deadline-based for inactive
 - Commits: edde145f (tab-work.js), 6723f19c (index.html), 887839e8 (dev.html)
+
+---
+Task ID: 2
+Agent: main
+Task: Add speed block to task overlay — Списано + В работе
+
+Work Log:
+- Tested Bitrix24 API: DATE_START field available and contains date when task moved to "In progress"
+- Added DATE_START to select fields in API query
+- Added _twFmtInWork(t) function: calculates time from DATE_START to now, returns "2дн 5ч" / "3ч 20м" / "15м"
+- Updated _twFmtSpent(t) to return "0ч" instead of "<1м" for zero time
+- Added tov-speed-block CSS: large 28px numbers, two columns separated by vertical line
+- Replaced old small "Затрачено" field with prominent speed block showing:
+  - Списано (green) — time tracked in Bitrix24
+  - В работе (cyan) — elapsed time since task was started
+- Only shown for active tasks (status 3/4)
+- Cache-bust updated to ?v=5
+- Pushed to GitHub: tab-work.js, index.html, dev.html
+
+Stage Summary:
+- All 8 verification checks passed
+- Commits: 8b0fd787 (tab-work.js), 676dd441 (index.html), b8b4667d (dev.html)

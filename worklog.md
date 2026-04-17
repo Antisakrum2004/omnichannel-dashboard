@@ -100,3 +100,24 @@ Stage Summary:
 - Pending tasks show as GREY
 - Blocked tasks show as RED
 - Task #6372 (Тимур, ВП) will now appear as ORANGE tile on April 17
+
+---
+Task ID: 1
+Agent: main
+Task: Fix active tasks to always appear in current day cell
+
+Work Log:
+- Read current tab-work.js (849 lines) and analyzed _twRenderGrid() cell date logic
+- Tested Bitrix24 API: 5 active tasks (REAL_STATUS=3/4) confirmed
+- Problem: tasks with deadlines on past weeks were placed in their deadline date cells, not visible on current week
+- Changed _twRenderGrid() logic: if REAL_STATUS=3/4 AND viewing current week → ALWAYS cellDate=todayStr
+- Non-active tasks still placed by deadline
+- Added isViewingCurrentWeek check (only redirect to today if today is within viewed week)
+- Added cache-busting ?v=4 to all JS script tags in index.html and dev.html
+- Pushed 3 files to GitHub: tab-work.js, index.html, dev.html
+- Verified on GitHub that new logic is present (isViewingCurrentWeek, isActive && isViewingCurrentWeek)
+
+Stage Summary:
+- All 5 active tasks now appear in today (2026-04-17): #6214(Артём), #6372(Ерлан), #6618(Тимур), #6628(Артём), #6698(Мурат)
+- Key change: cellDate assignment priority = active → today, then deadline-based for inactive
+- Commits: edde145f (tab-work.js), 6723f19c (index.html), 887839e8 (dev.html)

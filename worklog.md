@@ -199,3 +199,25 @@ Stage Summary:
 - tab-work.js: 963→1378 lines (+415 lines)
 - All features implemented: timer chips, stage chips, deadline chips, priority chips, dev overlay, stage-based tile visuals
 - Deployed via GitHub push to Vercel
+
+---
+Task ID: 1
+Agent: main
+Task: Implement 5 UI fixes for Bitrix24 Dev Dashboard
+
+Work Log:
+- Read tab-work.js (1660 lines), api/index.py, index.html, stage map
+- Added spent time display below all tiles (dim for stage-filled)
+- Reduced stage-filled tile brightness to 50% (opacity:.5, hover:.7)
+- Added backdrop-filter:blur(8px) to overlay background when open
+- Changed deadline box-shadow from outward to inset
+- Fixed priority change: optimistic local update before API sync
+- Moved dev surname chips from bottom bar to header row
+- Week date label now left-aligned, chips on the right
+- Updated cache-bust to tab-work.js?v=11
+- Pushed to GitHub (Vercel auto-deploy)
+
+Stage Summary:
+- Commit f102b32 pushed to origin/main
+- All 5 user requests implemented
+- Vercel deployment should be live shortly

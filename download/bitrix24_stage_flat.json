@@ -1,0 +1,989 @@
+{
+  "80": {
+    "title": "Новые",
+    "color": "a8afb3",
+    "sort": 100,
+    "groupId": "4",
+    "groupName": "Живое пиво"
+  },
+  "756": {
+    "title": "Оценка",
+    "color": "f5d220",
+    "sort": 200,
+    "groupId": "4",
+    "groupName": "Живое пиво"
+  },
+  "82": {
+    "title": "Работа",
+    "color": "2fc6f6",
+    "sort": 300,
+    "groupId": "4",
+    "groupName": "Живое пиво"
+  },
+  "402": {
+    "title": "Правки",
+    "color": "ff5752",
+    "sort": 400,
+    "groupId": "4",
+    "groupName": "Живое пиво"
+  },
+  "406": {
+    "title": "Тест",
+    "color": "9b51e0",
+    "sort": 500,
+    "groupId": "4",
+    "groupName": "Живое пиво"
+  },
+  "758": {
+    "title": "Релиз",
+    "color": "ffa900",
+    "sort": 600,
+    "groupId": "4",
+    "groupName": "Живое пиво"
+  },
+  "84": {
+    "title": "Готово",
+    "color": "7bd500",
+    "sort": 700,
+    "groupId": "4",
+    "groupName": "Живое пиво"
+  },
+  "404": {
+    "title": "Пауза",
+    "color": "754c24",
+    "sort": 800,
+    "groupId": "4",
+    "groupName": "Живое пиво"
+  },
+  "408": {
+    "title": "Счет",
+    "color": "1db7f1",
+    "sort": 900,
+    "groupId": "4",
+    "groupName": "Живое пиво"
+  },
+  "410": {
+    "title": "Оплата",
+    "color": "14b033",
+    "sort": 1000,
+    "groupId": "4",
+    "groupName": "Живое пиво"
+  },
+  "136": {
+    "title": "Новые",
+    "color": "a8afb3",
+    "sort": 100,
+    "groupId": "6",
+    "groupName": "Бигап"
+  },
+  "534": {
+    "title": "Оценка",
+    "color": "f5d220",
+    "sort": 200,
+    "groupId": "6",
+    "groupName": "Бигап"
+  },
+  "138": {
+    "title": "Работа",
+    "color": "2fc6f6",
+    "sort": 300,
+    "groupId": "6",
+    "groupName": "Бигап"
+  },
+  "188": {
+    "title": "Правки",
+    "color": "ff5752",
+    "sort": 400,
+    "groupId": "6",
+    "groupName": "Бигап"
+  },
+  "190": {
+    "title": "Тест",
+    "color": "9b51e0",
+    "sort": 500,
+    "groupId": "6",
+    "groupName": "Бигап"
+  },
+  "258": {
+    "title": "Релиз",
+    "color": "ffa900",
+    "sort": 600,
+    "groupId": "6",
+    "groupName": "Бигап"
+  },
+  "140": {
+    "title": "Готово",
+    "color": "8ec82f",
+    "sort": 700,
+    "groupId": "6",
+    "groupName": "Бигап"
+  },
+  "192": {
+    "title": "Пауза",
+    "color": "754c24",
+    "sort": 800,
+    "groupId": "6",
+    "groupName": "Бигап"
+  },
+  "194": {
+    "title": "Счет",
+    "color": "1db7f1",
+    "sort": 900,
+    "groupId": "6",
+    "groupName": "Бигап"
+  },
+  "196": {
+    "title": "Оплата",
+    "color": "14b033",
+    "sort": 1000,
+    "groupId": "6",
+    "groupName": "Бигап"
+  },
+  "150": {
+    "title": "Новые",
+    "color": "a8afb3",
+    "sort": 100,
+    "groupId": "20",
+    "groupName": "ВДЛ"
+  },
+  "722": {
+    "title": "Оценка",
+    "color": "f5d220",
+    "sort": 200,
+    "groupId": "20",
+    "groupName": "ВДЛ"
+  },
+  "152": {
+    "title": "Работа",
+    "color": "2fc6f6",
+    "sort": 300,
+    "groupId": "20",
+    "groupName": "ВДЛ"
+  },
+  "514": {
+    "title": "Правки",
+    "color": "ff5752",
+    "sort": 400,
+    "groupId": "20",
+    "groupName": "ВДЛ"
+  },
+  "154": {
+    "title": "Тест",
+    "color": "9b51e0",
+    "sort": 500,
+    "groupId": "20",
+    "groupName": "ВДЛ"
+  },
+  "748": {
+    "title": "Релиз",
+    "color": "ffa900",
+    "sort": 600,
+    "groupId": "20",
+    "groupName": "ВДЛ"
+  },
+  "724": {
+    "title": "Готово",
+    "color": "7bd500",
+    "sort": 700,
+    "groupId": "20",
+    "groupName": "ВДЛ"
+  },
+  "726": {
+    "title": "Пауза",
+    "color": "754c24",
+    "sort": 800,
+    "groupId": "20",
+    "groupName": "ВДЛ"
+  },
+  "728": {
+    "title": "Счет",
+    "color": "1db7f1",
+    "sort": 900,
+    "groupId": "20",
+    "groupName": "ВДЛ"
+  },
+  "730": {
+    "title": "Оплата",
+    "color": "14b033",
+    "sort": 1000,
+    "groupId": "20",
+    "groupName": "ВДЛ"
+  },
+  "86": {
+    "title": "Новые",
+    "color": "a8afb3",
+    "sort": 100,
+    "groupId": "32",
+    "groupName": "Дакар"
+  },
+  "736": {
+    "title": "Оценка",
+    "color": "f5d220",
+    "sort": 200,
+    "groupId": "32",
+    "groupName": "Дакар"
+  },
+  "528": {
+    "title": "Работа",
+    "color": "2fc6f6",
+    "sort": 300,
+    "groupId": "32",
+    "groupName": "Дакар"
+  },
+  "204": {
+    "title": "Правки",
+    "color": "ff5752",
+    "sort": 400,
+    "groupId": "32",
+    "groupName": "Дакар"
+  },
+  "198": {
+    "title": "Тест",
+    "color": "9b51e0",
+    "sort": 500,
+    "groupId": "32",
+    "groupName": "Дакар"
+  },
+  "746": {
+    "title": "Релиз",
+    "color": "ffa900",
+    "sort": 600,
+    "groupId": "32",
+    "groupName": "Дакар"
+  },
+  "90": {
+    "title": "Готово",
+    "color": "7bd500",
+    "sort": 700,
+    "groupId": "32",
+    "groupName": "Дакар"
+  },
+  "508": {
+    "title": "Пауза",
+    "color": "754c24",
+    "sort": 800,
+    "groupId": "32",
+    "groupName": "Дакар"
+  },
+  "200": {
+    "title": "Счет",
+    "color": "1db7f1",
+    "sort": 900,
+    "groupId": "32",
+    "groupName": "Дакар"
+  },
+  "202": {
+    "title": "Оплата",
+    "color": "14b033",
+    "sort": 1000,
+    "groupId": "32",
+    "groupName": "Дакар"
+  },
+  "292": {
+    "title": "Новые",
+    "color": "a8afb3",
+    "sort": 100,
+    "groupId": "36",
+    "groupName": "Медицина КЗ"
+  },
+  "362": {
+    "title": "Оценка",
+    "color": "f5d220",
+    "sort": 200,
+    "groupId": "36",
+    "groupName": "Медицина КЗ"
+  },
+  "294": {
+    "title": "Работа",
+    "color": "2fc6f6",
+    "sort": 300,
+    "groupId": "36",
+    "groupName": "Медицина КЗ"
+  },
+  "298": {
+    "title": "Правки",
+    "color": "ff5752",
+    "sort": 400,
+    "groupId": "36",
+    "groupName": "Медицина КЗ"
+  },
+  "300": {
+    "title": "Тест",
+    "color": "9b51e0",
+    "sort": 500,
+    "groupId": "36",
+    "groupName": "Медицина КЗ"
+  },
+  "750": {
+    "title": "Релиз",
+    "color": "ffa900",
+    "sort": 600,
+    "groupId": "36",
+    "groupName": "Медицина КЗ"
+  },
+  "296": {
+    "title": "Готово",
+    "color": "7bd500",
+    "sort": 700,
+    "groupId": "36",
+    "groupName": "Медицина КЗ"
+  },
+  "308": {
+    "title": "Пауза",
+    "color": "754c24",
+    "sort": 800,
+    "groupId": "36",
+    "groupName": "Медицина КЗ"
+  },
+  "302": {
+    "title": "Счет",
+    "color": "1db7f1",
+    "sort": 900,
+    "groupId": "36",
+    "groupName": "Медицина КЗ"
+  },
+  "306": {
+    "title": "Оплата",
+    "color": "14b033",
+    "sort": 1000,
+    "groupId": "36",
+    "groupName": "Медицина КЗ"
+  },
+  "414": {
+    "title": "Новые",
+    "color": "a8afb3",
+    "sort": 100,
+    "groupId": "50",
+    "groupName": "ИП Белолапотко"
+  },
+  "428": {
+    "title": "Оценка",
+    "color": "f5d220",
+    "sort": 200,
+    "groupId": "50",
+    "groupName": "ИП Белолапотко"
+  },
+  "532": {
+    "title": "Работа",
+    "color": "2fc6f6",
+    "sort": 300,
+    "groupId": "50",
+    "groupName": "ИП Белолапотко"
+  },
+  "416": {
+    "title": "Правки",
+    "color": "ff5752",
+    "sort": 400,
+    "groupId": "50",
+    "groupName": "ИП Белолапотко"
+  },
+  "530": {
+    "title": "Тест",
+    "color": "9b51e0",
+    "sort": 500,
+    "groupId": "50",
+    "groupName": "ИП Белолапотко"
+  },
+  "420": {
+    "title": "Релиз",
+    "color": "ffa900",
+    "sort": 600,
+    "groupId": "50",
+    "groupName": "ИП Белолапотко"
+  },
+  "418": {
+    "title": "Готово",
+    "color": "7bd500",
+    "sort": 700,
+    "groupId": "50",
+    "groupName": "ИП Белолапотко"
+  },
+  "538": {
+    "title": "Пауза",
+    "color": "754c24",
+    "sort": 800,
+    "groupId": "50",
+    "groupName": "ИП Белолапотко"
+  },
+  "422": {
+    "title": "Счет",
+    "color": "1db7f1",
+    "sort": 900,
+    "groupId": "50",
+    "groupName": "ИП Белолапотко"
+  },
+  "424": {
+    "title": "Оплата",
+    "color": "14b033",
+    "sort": 1000,
+    "groupId": "50",
+    "groupName": "ИП Белолапотко"
+  },
+  "430": {
+    "title": "Новые",
+    "color": "a8afb3",
+    "sort": 100,
+    "groupId": "52",
+    "groupName": "ООО ОПТИМАПЛАСТ"
+  },
+  "442": {
+    "title": "Оценка",
+    "color": "f5d220",
+    "sort": 200,
+    "groupId": "52",
+    "groupName": "ООО ОПТИМАПЛАСТ"
+  },
+  "622": {
+    "title": "Работа",
+    "color": "2fc6f6",
+    "sort": 300,
+    "groupId": "52",
+    "groupName": "ООО ОПТИМАПЛАСТ"
+  },
+  "432": {
+    "title": "Правки",
+    "color": "ff5752",
+    "sort": 400,
+    "groupId": "52",
+    "groupName": "ООО ОПТИМАПЛАСТ"
+  },
+  "436": {
+    "title": "Тест",
+    "color": "9b51e0",
+    "sort": 500,
+    "groupId": "52",
+    "groupName": "ООО ОПТИМАПЛАСТ"
+  },
+  "786": {
+    "title": "Релиз",
+    "color": "ffa900",
+    "sort": 600,
+    "groupId": "52",
+    "groupName": "ООО ОПТИМАПЛАСТ"
+  },
+  "434": {
+    "title": "Готово",
+    "color": "7bd500",
+    "sort": 700,
+    "groupId": "52",
+    "groupName": "ООО ОПТИМАПЛАСТ"
+  },
+  "440": {
+    "title": "Пауза",
+    "color": "754c24",
+    "sort": 800,
+    "groupId": "52",
+    "groupName": "ООО ОПТИМАПЛАСТ"
+  },
+  "438": {
+    "title": "Счет",
+    "color": "1db7f1",
+    "sort": 900,
+    "groupId": "52",
+    "groupName": "ООО ОПТИМАПЛАСТ"
+  },
+  "444": {
+    "title": "Оплата",
+    "color": "14b033",
+    "sort": 1000,
+    "groupId": "52",
+    "groupName": "ООО ОПТИМАПЛАСТ"
+  },
+  "564": {
+    "title": "Новые",
+    "color": "a8afb3",
+    "sort": 100,
+    "groupId": "62",
+    "groupName": "Нейс - Юг"
+  },
+  "588": {
+    "title": "Оценка",
+    "color": "f5d220",
+    "sort": 200,
+    "groupId": "62",
+    "groupName": "Нейс - Юг"
+  },
+  "566": {
+    "title": "Работа",
+    "color": "2fc6f6",
+    "sort": 300,
+    "groupId": "62",
+    "groupName": "Нейс - Юг"
+  },
+  "590": {
+    "title": "Правки",
+    "color": "ff5752",
+    "sort": 400,
+    "groupId": "62",
+    "groupName": "Нейс - Юг"
+  },
+  "720": {
+    "title": "Тест",
+    "color": "9b51e0",
+    "sort": 500,
+    "groupId": "62",
+    "groupName": "Нейс - Юг"
+  },
+  "568": {
+    "title": "Релиз",
+    "color": "ffa900",
+    "sort": 600,
+    "groupId": "62",
+    "groupName": "Нейс - Юг"
+  },
+  "592": {
+    "title": "Готово",
+    "color": "7bd500",
+    "sort": 700,
+    "groupId": "62",
+    "groupName": "Нейс - Юг"
+  },
+  "594": {
+    "title": "Пауза",
+    "color": "754c24",
+    "sort": 800,
+    "groupId": "62",
+    "groupName": "Нейс - Юг"
+  },
+  "752": {
+    "title": "Счет",
+    "color": "1db7f1",
+    "sort": 900,
+    "groupId": "62",
+    "groupName": "Нейс - Юг"
+  },
+  "754": {
+    "title": "Оплата",
+    "color": "14b033",
+    "sort": 1000,
+    "groupId": "62",
+    "groupName": "Нейс - Юг"
+  },
+  "602": {
+    "title": "Новые",
+    "color": "a8afb3",
+    "sort": 100,
+    "groupId": "66",
+    "groupName": "ИП Иванов А.В."
+  },
+  "604": {
+    "title": "Оценка",
+    "color": "f5d220",
+    "sort": 200,
+    "groupId": "66",
+    "groupName": "ИП Иванов А.В."
+  },
+  "740": {
+    "title": "Работа",
+    "color": "2fc6f6",
+    "sort": 300,
+    "groupId": "66",
+    "groupName": "ИП Иванов А.В."
+  },
+  "632": {
+    "title": "Правки",
+    "color": "ff5752",
+    "sort": 400,
+    "groupId": "66",
+    "groupName": "ИП Иванов А.В."
+  },
+  "630": {
+    "title": "Тест",
+    "color": "9b51e0",
+    "sort": 500,
+    "groupId": "66",
+    "groupName": "ИП Иванов А.В."
+  },
+  "744": {
+    "title": "Релиз",
+    "color": "ffa900",
+    "sort": 600,
+    "groupId": "66",
+    "groupName": "ИП Иванов А.В."
+  },
+  "606": {
+    "title": "Готово",
+    "color": "7bd500",
+    "sort": 700,
+    "groupId": "66",
+    "groupName": "ИП Иванов А.В."
+  },
+  "742": {
+    "title": "Пауза",
+    "color": "754c24",
+    "sort": 800,
+    "groupId": "66",
+    "groupName": "ИП Иванов А.В."
+  },
+  "634": {
+    "title": "Счет",
+    "color": "1db7f1",
+    "sort": 900,
+    "groupId": "66",
+    "groupName": "ИП Иванов А.В."
+  },
+  "636": {
+    "title": "Оплата",
+    "color": "14b033",
+    "sort": 1000,
+    "groupId": "66",
+    "groupName": "ИП Иванов А.В."
+  },
+  "614": {
+    "title": "Новые",
+    "color": "a8afb3",
+    "sort": 100,
+    "groupId": "70",
+    "groupName": "МАРКДЖЕТ ООО"
+  },
+  "620": {
+    "title": "Оценка",
+    "color": "f5d220",
+    "sort": 200,
+    "groupId": "70",
+    "groupName": "МАРКДЖЕТ ООО"
+  },
+  "616": {
+    "title": "Работа",
+    "color": "2fc6f6",
+    "sort": 300,
+    "groupId": "70",
+    "groupName": "МАРКДЖЕТ ООО"
+  },
+  "618": {
+    "title": "Правки",
+    "color": "ff5752",
+    "sort": 400,
+    "groupId": "70",
+    "groupName": "МАРКДЖЕТ ООО"
+  },
+  "760": {
+    "title": "Тест",
+    "color": "9b51e0",
+    "sort": 500,
+    "groupId": "70",
+    "groupName": "МАРКДЖЕТ ООО"
+  },
+  "762": {
+    "title": "Релиз",
+    "color": "ffa900",
+    "sort": 600,
+    "groupId": "70",
+    "groupName": "МАРКДЖЕТ ООО"
+  },
+  "764": {
+    "title": "Готово",
+    "color": "7bd500",
+    "sort": 700,
+    "groupId": "70",
+    "groupName": "МАРКДЖЕТ ООО"
+  },
+  "766": {
+    "title": "Пауза",
+    "color": "754c24",
+    "sort": 800,
+    "groupId": "70",
+    "groupName": "МАРКДЖЕТ ООО"
+  },
+  "768": {
+    "title": "Счет",
+    "color": "1db7f1",
+    "sort": 900,
+    "groupId": "70",
+    "groupName": "МАРКДЖЕТ ООО"
+  },
+  "770": {
+    "title": "Оплата",
+    "color": "14b033",
+    "sort": 1000,
+    "groupId": "70",
+    "groupName": "МАРКДЖЕТ ООО"
+  },
+  "624": {
+    "title": "Новые",
+    "color": "a8afb3",
+    "sort": 100,
+    "groupId": "72",
+    "groupName": "Керамика Фабрика"
+  },
+  "772": {
+    "title": "Оценка",
+    "color": "f5d220",
+    "sort": 200,
+    "groupId": "72",
+    "groupName": "Керамика Фабрика"
+  },
+  "626": {
+    "title": "Работа",
+    "color": "2fc6f6",
+    "sort": 300,
+    "groupId": "72",
+    "groupName": "Керамика Фабрика"
+  },
+  "628": {
+    "title": "Правки",
+    "color": "ff5752",
+    "sort": 400,
+    "groupId": "72",
+    "groupName": "Керамика Фабрика"
+  },
+  "774": {
+    "title": "Тест",
+    "color": "9b51e0",
+    "sort": 500,
+    "groupId": "72",
+    "groupName": "Керамика Фабрика"
+  },
+  "776": {
+    "title": "Релиз",
+    "color": "ffa900",
+    "sort": 600,
+    "groupId": "72",
+    "groupName": "Керамика Фабрика"
+  },
+  "778": {
+    "title": "Готово",
+    "color": "7bd500",
+    "sort": 700,
+    "groupId": "72",
+    "groupName": "Керамика Фабрика"
+  },
+  "780": {
+    "title": "Пауза",
+    "color": "754c24",
+    "sort": 800,
+    "groupId": "72",
+    "groupName": "Керамика Фабрика"
+  },
+  "782": {
+    "title": "Счет",
+    "color": "1db7f1",
+    "sort": 900,
+    "groupId": "72",
+    "groupName": "Керамика Фабрика"
+  },
+  "784": {
+    "title": "Оплата",
+    "color": "14b033",
+    "sort": 1000,
+    "groupId": "72",
+    "groupName": "Керамика Фабрика"
+  },
+  "702": {
+    "title": "Новые",
+    "color": "a8afb3",
+    "sort": 100,
+    "groupId": "78",
+    "groupName": "Backlog"
+  },
+  "704": {
+    "title": "Работа",
+    "color": "2fc6f6",
+    "sort": 200,
+    "groupId": "78",
+    "groupName": "Backlog"
+  },
+  "788": {
+    "title": "Пауза",
+    "color": "a46200",
+    "sort": 300,
+    "groupId": "78",
+    "groupName": "Backlog"
+  },
+  "706": {
+    "title": "Готово",
+    "color": "7bd500",
+    "sort": 400,
+    "groupId": "78",
+    "groupName": "Backlog"
+  },
+  "26": {
+    "title": "Новые",
+    "color": "00C4FB",
+    "sort": 100,
+    "groupId": "2",
+    "groupName": "Обучение 1с"
+  },
+  "28": {
+    "title": "Выполняются",
+    "color": "47D1E2",
+    "sort": 200,
+    "groupId": "2",
+    "groupName": "Обучение 1с"
+  },
+  "30": {
+    "title": "Сделаны",
+    "color": "75D900",
+    "sort": 300,
+    "groupId": "2",
+    "groupName": "Обучение 1с"
+  },
+  "218": {
+    "title": "Новые",
+    "color": "00C4FB",
+    "sort": 100,
+    "groupId": "18",
+    "groupName": "Самокаты центр"
+  },
+  "220": {
+    "title": "Выполняются",
+    "color": "47D1E2",
+    "sort": 200,
+    "groupId": "18",
+    "groupName": "Самокаты центр"
+  },
+  "222": {
+    "title": "Сделаны",
+    "color": "75D900",
+    "sort": 300,
+    "groupId": "18",
+    "groupName": "Самокаты центр"
+  },
+  "516": {
+    "title": "Новые",
+    "color": "00C4FB",
+    "sort": 100,
+    "groupId": "42",
+    "groupName": "ИТ Контроль"
+  },
+  "518": {
+    "title": "Выполняются",
+    "color": "47D1E2",
+    "sort": 200,
+    "groupId": "42",
+    "groupName": "ИТ Контроль"
+  },
+  "520": {
+    "title": "Сделаны",
+    "color": "75D900",
+    "sort": 300,
+    "groupId": "42",
+    "groupName": "ИТ Контроль"
+  },
+  "546": {
+    "title": "Новые",
+    "color": "00C4FB",
+    "sort": 100,
+    "groupId": "48",
+    "groupName": "[APP GBL] Просроченные"
+  },
+  "548": {
+    "title": "Выполняются",
+    "color": "47D1E2",
+    "sort": 200,
+    "groupId": "48",
+    "groupName": "[APP GBL] Просроченные"
+  },
+  "550": {
+    "title": "Сделаны",
+    "color": "75D900",
+    "sort": 300,
+    "groupId": "48",
+    "groupName": "[APP GBL] Просроченные"
+  },
+  "552": {
+    "title": "Новые",
+    "color": "00C4FB",
+    "sort": 100,
+    "groupId": "60",
+    "groupName": "Кондитеры"
+  },
+  "554": {
+    "title": "Выполняются",
+    "color": "47D1E2",
+    "sort": 200,
+    "groupId": "60",
+    "groupName": "Кондитеры"
+  },
+  "556": {
+    "title": "Сделаны",
+    "color": "75D900",
+    "sort": 300,
+    "groupId": "60",
+    "groupName": "Кондитеры"
+  },
+  "596": {
+    "title": "Новые",
+    "color": "00C4FB",
+    "sort": 100,
+    "groupId": "64",
+    "groupName": "Завод Милл ФАУЗ"
+  },
+  "598": {
+    "title": "Выполняются",
+    "color": "47D1E2",
+    "sort": 200,
+    "groupId": "64",
+    "groupName": "Завод Милл ФАУЗ"
+  },
+  "600": {
+    "title": "Сделаны",
+    "color": "75D900",
+    "sort": 300,
+    "groupId": "64",
+    "groupName": "Завод Милл ФАУЗ"
+  },
+  "714": {
+    "title": "Новые",
+    "color": "00C4FB",
+    "sort": 100,
+    "groupId": "74",
+    "groupName": "Керамика"
+  },
+  "716": {
+    "title": "Выполняются",
+    "color": "47D1E2",
+    "sort": 200,
+    "groupId": "74",
+    "groupName": "Керамика"
+  },
+  "718": {
+    "title": "Сделаны",
+    "color": "75D900",
+    "sort": 300,
+    "groupId": "74",
+    "groupName": "Керамика"
+  },
+  "678": {
+    "title": "Новые",
+    "color": "00C4FB",
+    "sort": 100,
+    "groupId": "76",
+    "groupName": "1с Разработка В.В."
+  },
+  "680": {
+    "title": "Выполняются",
+    "color": "47D1E2",
+    "sort": 200,
+    "groupId": "76",
+    "groupName": "1с Разработка В.В."
+  },
+  "682": {
+    "title": "Сделаны",
+    "color": "75D900",
+    "sort": 300,
+    "groupId": "76",
+    "groupName": "1с Разработка В.В."
+  },
+  "482": {
+    "title": "Новые",
+    "color": "00C4FB",
+    "sort": 100,
+    "groupId": "80",
+    "groupName": "Все проекты"
+  },
+  "484": {
+    "title": "Выполняются",
+    "color": "47D1E2",
+    "sort": 200,
+    "groupId": "80",
+    "groupName": "Все проекты"
+  },
+  "486": {
+    "title": "Сделаны",
+    "color": "75D900",
+    "sort": 300,
+    "groupId": "80",
+    "groupName": "Все проекты"
+  }
+}

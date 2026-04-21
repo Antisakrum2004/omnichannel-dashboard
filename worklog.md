@@ -168,3 +168,34 @@ Stage Summary:
 - #6214: "22дн 7ч с 26 мар 11:58" (correct!)
 - #6372: "16дн 1ч с 01 апр 17:33" (correct!)
 - All verified against real Bitrix24 API data
+---
+Task ID: 1
+Agent: Main Agent
+Task: Implement timer chips, stage/deadline/priority chips, dev overlay, stage-based tile visuals
+
+Work Log:
+- Read full codebase: tab-work.js (963 lines), dev-page.js (1450 lines), core.js, index.html
+- Analyzed existing overlay mechanics (_twOpenTaskOverlay, _twBuildSquare)
+- Read stage_map.json with all project kanban stages
+- Designed and implemented all new features in tab-work.js (963→1378 lines)
+- Added STAGE_MAP constant with 18 project group mappings
+- Added timer state management with localStorage persistence
+- Added timer functions: _twSetTimer, _twStopTimer, _twGetTimerInfo
+- Added stage/deadline/priority change functions via Bitrix API
+- Added stage info helpers: _twGetStageInfo, _twGetStageTitle, _twGetStageColor
+- Modified _twOpenTaskOverlay with timer block, stage chips, deadline chips, priority chips
+- Added timer countdown display with setInterval for live updates
+- When timer expires: shows "Время вышло!" + stage change chips from project kanban
+- Modified _twBuildSquare for stage-based CSS classes (stage-test, stage-done, stage-release) with dim/purple indicators
+- Added stage labels below squares (тест, готово, релиз)
+- Added deadline urgency indicators (deadline-overdue, deadline-today, deadline-tomorrow)
+- Added _twOpenDevOverlay function opening /dev/<userId> in popup
+- Added _twRenderDevChips for bottom bar with developer names
+- Added dev bar div to index.html
+- Updated cache-bust to ?v=7
+- Committed and force-pushed to GitHub (Vercel auto-deploy)
+
+Stage Summary:
+- tab-work.js: 963→1378 lines (+415 lines)
+- All features implemented: timer chips, stage chips, deadline chips, priority chips, dev overlay, stage-based tile visuals
+- Deployed via GitHub push to Vercel

@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Страница разработчика — Макет V2</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{
+    background:#0d1117;color:#e6edf3;font-family:'Inter',system-ui,sans-serif;
+    min-height:100vh;padding:20px;
+  }
+  :root{
+    --bg:#0d1117;--bg2:#161b22;--bg3:#1c2333;
+    --glass:rgba(22,27,34,0.85);--glass-border:rgba(48,54,61,0.6);
+    --text:#e6edf3;--text2:#8b949e;--text3:#484f58;
+    --accent:#4f8bff;--green:#22d47e;--red:#ff4f6a;--orange:#ff8c42;--cyan:#00d4ff;--yellow:#f0c040;
+    --mono:'JetBrains Mono',monospace;
+    --border:rgba(48,54,61,0.6);--border2:rgba(48,54,61,0.3);
+    --radius:12px;
+  }
+  .page-label{
+    font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:1.5px;
+    margin-bottom:12px;display:flex;align-items:center;gap:8px;
+  }
+  .page-label::before{content:'📐';font-size:14px;}
+
+  /* LAYOUT */
+  .dev-page{max-width:1400px;margin:0 auto;}
+
+  /* HEADER */
+  .dev-header{
+    display:flex;align-items:center;gap:16px;margin-bottom:20px;
+    padding:16px 20px;background:var(--glass);
+    border:1px solid var(--glass-border);border-radius:var(--radius);
+  }
+  .dev-avatar{
+    width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-weight:700;font-size:20px;background:linear-gradient(135deg,#4f8bff,#00d4ff);color:#fff;flex-shrink:0;
+  }
+  .dev-header-info h2{font-size:18px;font-weight:600;margin-bottom:2px;}
+  .dev-header-info span{font-size:13px;color:var(--text2);}
+
+  /* MAIN GRID: 2 columns */
+  .dev-main{
+    display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;
+  }
+
+  /* CARD */
+  .card{
+    background:var(--glass);border:1px solid var(--glass-border);
+    border-radius:var(--radius);overflow:hidden;
+  }
+  .card-head{
+    padding:12px 16px;border-bottom:1px solid var(--border2);
+    display:flex;align-items:center;gap:8px;
+  }
+  .card-head .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .card-head .dot.green{background:var(--green);}
+  .card-head .dot.orange{background:var(--orange);}
+  .card-head .dot.cyan{background:var(--cyan);}
+  .card-head .dot.yellow{background:var(--yellow);}
+  .card-head .title{font-size:13px;font-weight:600;flex:1;}
+  .card-head .cnt{
+    font-size:11px;color:var(--text2);background:var(--bg);padding:2px 8px;border-radius:10px;
+    font-family:var(--mono);
+  }
+
+  /* TASK CARD */
+  .task-card{
+    display:flex;align-items:center;gap:10px;padding:10px 16px;
+    border-bottom:1px solid var(--border2);cursor:pointer;transition:background .15s;
+  }
+  .task-card:hover{background:rgba(79,139,255,0.06);}
+  .task-card:last-child{border-bottom:none;}
+
+  .task-qnum{
+    width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;
+    font-size:12px;font-weight:700;font-family:var(--mono);flex-shrink:0;
+    background:rgba(34,212,126,0.15);color:var(--green);
+  }
+  .task-addplan{
+    width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;
+    font-size:16px;font-weight:700;flex-shrink:0;cursor:pointer;
+    background:rgba(34,212,126,0.1);color:var(--green);border:1px dashed rgba(34,212,126,0.4);
+    transition:all .15s;
+  }
+  .task-addplan:hover{background:rgba(34,212,126,0.2);border-style:solid;}
+
+  .task-info{flex:1;min-width:0;}
+  .task-title{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .task-meta{display:flex;gap:6px;align-items:center;margin-top:3px;flex-wrap:wrap;}
+  .task-meta .stage{
+    font-size:10px;padding:1px 6px;border-radius:4px;font-weight:500;
+  }
+  .stage-work{background:rgba(79,139,255,0.15);color:var(--accent);}
+  .stage-review{background:rgba(240,192,64,0.15);color:var(--yellow);}
+  .stage-test{background:rgba(0,212,255,0.15);color:var(--cyan);}
+  .task-meta .qtag{font-size:10px;color:var(--green);font-family:var(--mono);}
+  .task-meta .time-spent{font-size:10px;color:var(--green);}
+  .task-meta .time-est{font-size:10px;color:var(--cyan);}
+  .task-right{flex-shrink:0;}
+  .task-rm{
+    width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;
+    font-size:11px;color:var(--text3);cursor:pointer;transition:all .15s;
+  }
+  .task-rm:hover{background:rgba(255,79,106,0.15);color:var(--red);}
+
+  /* EXPANDED TASK */
+  .task-expanded{
+    padding:12px 16px;border-bottom:1px solid var(--border2);background:rgba(79,139,255,0.03);
+  }
+  .task-expanded .te-desc{font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:10px;}
+  .task-expanded .te-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+  .te-btn{
+    font-size:11px;padding:4px 10px;border-radius:6px;cursor:pointer;border:none;font-weight:500;
+    transition:all .15s;font-family:inherit;
+  }
+  .te-btn-green{background:rgba(34,212,126,0.15);color:var(--green);}
+  .te-btn-green:hover{background:rgba(34,212,126,0.25);}
+  .te-btn-cyan{background:rgba(0,212,255,0.12);color:var(--cyan);}
+  .te-btn-cyan:hover{background:rgba(0,212,255,0.2);}
+  .te-btn-red{background:rgba(255,79,106,0.12);color:var(--red);}
+  .te-btn-red:hover{background:rgba(255,79,106,0.2);}
+  .te-btn-orange{background:rgba(255,140,66,0.12);color:var(--orange);}
+  .te-btn-gray{background:var(--bg);color:var(--text2);}
+  .te-btn-gray:hover{color:var(--text);}
+  .te-info-row{display:flex;gap:16px;margin-bottom:8px;font-size:11px;color:var(--text2);}
+  .te-info-row span{display:flex;align-items:center;gap:4px;}
+  .te-info-row b{color:var(--text);font-weight:500;}
+
+  /* DIM TASK */
+  .task-dim{opacity:0.4;}
+  .task-dim:hover{opacity:0.6;}
+
+  /* TIME TRACKING ROW */
+  .time-row{
+    display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:12px;
+    padding:12px 16px;border-bottom:1px solid var(--border2);cursor:pointer;transition:background .15s;
+  }
+  .time-row:hover{background:rgba(79,139,255,0.06);}
+  .time-row .tr-name{font-size:13px;font-weight:500;}
+  .time-row .tr-logged{font-size:13px;font-family:var(--mono);text-align:right;color:var(--green);}
+  .time-row .tr-plan{min-width:120px;}
+  .prog{position:relative;height:6px;background:var(--bg);border-radius:3px;overflow:visible;}
+  .prog-fill{height:100%;border-radius:3px;transition:width .3s;}
+  .prog-pct{font-size:10px;font-family:var(--mono);color:var(--text2);margin-top:2px;}
+  .badge{font-size:10px;padding:2px 8px;border-radius:4px;font-weight:600;}
+  .badge-ok{background:rgba(34,212,126,0.15);color:var(--green);}
+  .badge-over{background:rgba(255,79,106,0.15);color:var(--red);}
+  .badge-under{background:rgba(255,140,66,0.15);color:var(--orange);}
+
+  /* TIME ROW EXPANDED */
+  .time-expanded{
+    padding:12px 16px;border-bottom:1px solid var(--border2);background:rgba(79,139,255,0.03);
+  }
+  .te-task-row{display:flex;justify-content:space-between;padding:4px 0;font-size:12px;}
+  .te-task-row .name{color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:12px;}
+  .te-task-row .time{color:var(--green);font-family:var(--mono);flex-shrink:0;}
+
+  /* ANALYTICS SECTION */
+  .analytics-section{margin-bottom:16px;}
+  .analytics-section .section-title{
+    font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;
+    margin-bottom:8px;padding:0 4px;
+  }
+
+  /* WIP ROW */
+  .wip-row{
+    display:flex;gap:6px;flex-wrap:wrap;padding:12px 16px;
+  }
+  .wip-cell{
+    display:flex;flex-direction:column;align-items:center;gap:2px;
+    padding:8px 12px;background:var(--bg);border-radius:8px;min-width:60px;
+  }
+  .wip-cell .label{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;}
+  .wip-cell .val{font-size:16px;font-weight:700;font-family:var(--mono);}
+  .wip-cell .val.w{color:var(--text);}
+  .wip-cell .val.y{color:var(--yellow);}
+  .wip-cell .val.o{color:var(--orange);}
+  .wip-cell .val.r{color:var(--red);}
+  .wip-cell .val.g{color:var(--green);}
+  .wip-cell .pct-bar{width:100%;height:3px;background:var(--bg2);border-radius:2px;margin-top:2px;overflow:hidden;}
+  .wip-cell .pct-fill{height:100%;border-radius:2px;}
+
+  /* MINI CHART */
+  .mini-chart{
+    padding:12px 16px;display:flex;flex-direction:column;gap:4px;
+  }
+  .mini-chart-header{display:flex;justify-content:space-between;align-items:center;}
+  .mini-chart-header .mc-title{font-size:12px;font-weight:500;}
+  .mini-chart-header .mc-val{font-size:12px;font-family:var(--mono);color:var(--green);}
+  .mini-chart-header .mc-prev{font-size:10px;color:var(--text3);}
+  .chart-svg{width:100%;height:60px;}
+  .chart-svg polyline{fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+  .chart-svg .current{stroke:var(--green);}
+  .chart-svg .prev{stroke:var(--text3);stroke-dasharray:4,3;}
+  .chart-svg .grid-line{stroke:var(--border2);stroke-width:0.5;}
+  .chart-svg text{fill:var(--text3);font-size:8px;font-family:var(--mono);}
+
+  /* VELOCITY */
+  .velocity-box{
+    display:flex;align-items:center;gap:12px;padding:12px 16px;
+  }
+  .velocity-num{
+    font-size:28px;font-weight:700;font-family:var(--mono);color:var(--green);line-height:1;
+  }
+  .velocity-label{font-size:11px;color:var(--text2);line-height:1.4;}
+  .velocity-arrow{font-size:16px;color:var(--green);}
+
+  /* STUCK */
+  .stuck-box{
+    display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer;
+  }
+  .stuck-num{font-size:20px;font-weight:700;font-family:var(--mono);color:var(--orange);line-height:1;}
+  .stuck-label{font-size:11px;color:var(--text2);line-height:1.4;}
+
+  /* DATE RANGE SELECTOR */
+  .date-range{
+    display:flex;gap:4px;padding:8px 16px;flex-wrap:wrap;
+  }
+  .dr-btn{
+    font-size:10px;padding:3px 10px;border-radius:6px;border:1px solid var(--border2);
+    background:transparent;color:var(--text2);cursor:pointer;transition:all .15s;font-family:inherit;
+  }
+  .dr-btn:hover{border-color:var(--accent);color:var(--accent);}
+  .dr-btn.active{background:rgba(79,139,255,0.15);border-color:var(--accent);color:var(--accent);}
+
+  /* FULL WIDTH SECTION */
+  .full-width{grid-column:1/-1;}
+
+  /* SEPARATOR */
+  .sep{height:1px;background:var(--border2);margin:0 16px;}
+
+  /* PROJECT TAGS */
+  .project-tags{display:flex;gap:6px;flex-wrap:wrap;padding:12px 16px;}
+  .project-tag{
+    font-size:11px;padding:4px 10px;border-radius:6px;cursor:pointer;transition:all .15s;
+    background:var(--bg);color:var(--text2);border:1px solid var(--border2);
+  }
+  .project-tag:hover{border-color:var(--accent);color:var(--accent);}
+  .project-tag.active{background:rgba(79,139,255,0.15);border-color:var(--accent);color:var(--accent);}
+  .project-tag .pt-cnt{
+    font-size:9px;font-family:var(--mono);margin-left:4px;opacity:0.7;
+  }
+
+  /* ADD TASK */
+  .add-task-row{
+    padding:8px 16px;display:flex;gap:8px;align-items:center;
+  }
+  .add-task-input{
+    flex:1;background:var(--bg);border:1px solid var(--border2);border-radius:8px;
+    padding:6px 12px;font-size:12px;color:var(--text);outline:none;font-family:inherit;
+  }
+  .add-task-input:focus{border-color:var(--accent);}
+  .add-task-input::placeholder{color:var(--text3);}
+  .add-task-btn{
+    font-size:11px;padding:6px 12px;border-radius:8px;border:none;cursor:pointer;
+    background:rgba(34,212,126,0.15);color:var(--green);font-weight:500;font-family:inherit;
+    transition:all .15s;
+  }
+  .add-task-btn:hover{background:rgba(34,212,126,0.25);}
+
+  /* RUNNING INDICATOR */
+  .running-dot{
+    width:6px;height:6px;border-radius:50%;background:var(--green);
+    animation:pulse 1.5s infinite;display:inline-block;
+  }
+  @keyframes pulse{
+    0%,100%{opacity:1;transform:scale(1);}
+    50%{opacity:0.4;transform:scale(0.8);}
+  }
+
+  /* ANNOTATION */
+  .annotation{
+    position:relative;padding:16px 20px;
+    background:linear-gradient(135deg,rgba(79,139,255,0.08),rgba(0,212,255,0.05));
+    border:1px dashed rgba(79,139,255,0.3);border-radius:var(--radius);
+    margin-bottom:20px;font-size:12px;color:var(--text2);line-height:1.6;
+  }
+  .annotation b{color:var(--accent);}
+  .annotation .ann-label{
+    position:absolute;top:-9px;left:16px;background:var(--bg);padding:0 8px;
+    font-size:10px;color:var(--accent);text-transform:uppercase;letter-spacing:1px;font-weight:600;
+  }
+
+  /* RESPONSIVE */
+  @media(max-width:900px){
+    .dev-main{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+
+<div class="page-label">Макет страницы разработчика — для обсуждения</div>
+
+<!-- ANNOTATION -->
+<div class="annotation">
+  <div class="ann-label">Изменения</div>
+  <b>1.</b> План на сегодня ← ЛЕВО, Проекты ← ПРАВО (поменяны местами)<br>
+  <b>2.</b> Кнопка «в план» перенесена ВЛЕВО при раскрытии задачи<br>
+  <b>3.</b> Ссылка «Bitrix ↗» рядом с «в план» УБРАНА (есть у кнопки «Старт»)<br>
+  <b>4.</b> Строка учёта времени перенесена с вкладки «Учёт» (раскрывается аналогично)<br>
+  <b>5.</b> Аналитика по разработчику: WIP-строка, графики, Velocity, без движения<br>
+  <b>6.</b> Приоритет: План + текущие задачи → Аналитика вниз<br>
+  <b>7.</b> Добавление задач: из Битрикс / с панели менеджера / сам разработчик у себя
+</div>
+
+<div class="dev-page">
+
+  <!-- HEADER -->
+  <div class="dev-header">
+    <div class="dev-avatar">А</div>
+    <div class="dev-header-info">
+      <h2>Алексей</h2>
+      <span>5 задач · 3 в плане · <span class="running-dot"></span> работает над #6812</span>
+    </div>
+    <!-- Date range -->
+    <div style="margin-left:auto;display:flex;gap:4px;">
+      <button class="dr-btn">Вчера</button>
+      <button class="dr-btn active">Сегодня</button>
+      <button class="dr-btn">Прошлая нед.</button>
+      <button class="dr-btn">Эта нед.</button>
+      <button class="dr-btn">Этот мес.</button>
+      <button class="dr-btn">Прошлый мес.</button>
+    </div>
+  </div>
+
+  <!-- MAIN 2-COLUMN GRID -->
+  <div class="dev-main">
+
+    <!-- LEFT: PLAN (ПЕРВООЧЕРЕДНО) -->
+    <div style="display:flex;flex-direction:column;gap:16px;">
+
+      <!-- TIME TRACKING ROW (from Accounting) -->
+      <div class="card">
+        <div class="time-row">
+          <div class="tr-name">⏱ Учёт времени</div>
+          <div style="flex:1;">
+            <div class="prog"><div class="prog-fill" style="width:78%;background:linear-gradient(90deg,var(--green),var(--cyan));"></div></div>
+            <div class="prog-pct">5ч 28м из 7ч</div>
+          </div>
+          <div class="tr-logged">5:28</div>
+          <span class="badge badge-ok">Норма</span>
+        </div>
+        <!-- Expanded -->
+        <div class="time-expanded">
+          <div class="te-task-row"><span class="name">Доработка модуля оплат</span><span class="time">2:15</span></div>
+          <div class="te-task-row"><span class="name">Фильтры на странице заказов</span><span class="time">1:30</span></div>
+          <div class="te-task-row"><span class="name">Интеграция с API доставки</span><span class="time">1:03</span></div>
+          <div class="te-task-row"><span class="name" style="color:var(--text3)">Прочее</span><span class="time" style="color:var(--text3)">0:40</span></div>
+        </div>
+      </div>
+
+      <!-- ПЛАН НА СЕГОДНЯ -->
+      <div class="card">
+        <div class="card-head">
+          <div class="dot green"></div>
+          <span class="title">План на сегодня</span>
+          <span class="cnt">3</span>
+        </div>
+
+        <!-- Task 1: In plan, expanded -->
+        <div class="task-card">
+          <div class="task-qnum">1</div>
+          <div class="task-info">
+            <div class="task-title">Доработка модуля оплат <span style="color:var(--green);font-size:10px;">●</span></div>
+            <div class="task-meta">
+              <span class="stage stage-work">Работа</span>
+              <span class="qtag">Q1</span>
+              <span class="time-spent">✓ 2ч 15м</span>
+              <span class="time-est">⏳ 3д 5ч</span>
+            </div>
+          </div>
+          <div class="task-right"><div class="task-rm">✕</div></div>
+        </div>
+        <!-- Expanded detail for Task 1 -->
+        <div class="task-expanded">
+          <div class="te-info-row">
+            <span>Крайний: <b>25 апр</b></span>
+            <span>Оценка: <b>4ч</b></span>
+            <span>Списано: <b>2:15</b></span>
+            <span>Проект: <b>Дакар</b></span>
+          </div>
+          <div class="te-desc">Реализовать возврат по ошибке шлюза, добавить логирование...</div>
+          <div class="te-actions">
+            <!-- В ПЛАН — СЛЕВА (перенесено) -->
+            <button class="te-btn te-btn-green">✓ В плане</button>
+            <button class="te-btn te-btn-cyan">▶ Старт</button>
+            <button class="te-btn te-btn-orange">⏸ Пауза</button>
+            <!-- Bitrix ссылка УБРАНА отсюда -->
+          </div>
+        </div>
+
+        <!-- Task 2: In plan, running -->
+        <div class="task-card">
+          <div class="task-qnum">2</div>
+          <div class="task-info">
+            <div class="task-title">Фильтры на странице заказов <span class="running-dot"></span></div>
+            <div class="task-meta">
+              <span class="stage stage-work">Работа</span>
+              <span class="qtag">Q2</span>
+              <span class="time-spent">✓ 1:30</span>
+            </div>
+          </div>
+          <div class="task-right"><div class="task-rm">✕</div></div>
+        </div>
+
+        <!-- Task 3: In plan -->
+        <div class="task-card">
+          <div class="task-qnum">3</div>
+          <div class="task-info">
+            <div class="task-title">Интеграция с API доставки</div>
+            <div class="task-meta">
+              <span class="stage stage-work">Работа</span>
+              <span class="qtag">Q3</span>
+              <span class="time-est">⏳ 2д</span>
+            </div>
+          </div>
+          <div class="task-right"><div class="task-rm">✕</div></div>
+        </div>
+
+        <div class="sep"></div>
+
+        <!-- ВНЕПЛАНОВЫЕ -->
+        <div class="card-head" style="border-bottom:none;">
+          <div class="dot orange"></div>
+          <span class="title">Внеплановые</span>
+          <span class="cnt">2</span>
+        </div>
+
+        <div class="task-card">
+          <div class="task-addplan">+</div>
+          <div class="task-info">
+            <div class="task-title">Bug: Не сохраняется адрес</div>
+            <div class="task-meta">
+              <span class="stage stage-work">Работа</span>
+              <span class="time-spent">✓ 45м</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="task-card">
+          <div class="task-addplan">+</div>
+          <div class="task-info">
+            <div class="task-title">Срочный фикс авторизации</div>
+            <div class="task-meta">
+              <span class="stage stage-work">Работа</span>
+              <span style="color:var(--red);font-size:10px;">⚠ Горит</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="sep"></div>
+
+        <!-- НА ПРОВЕРКЕ -->
+        <div class="card-head" style="border-bottom:none;">
+          <div class="dot cyan"></div>
+          <span class="title">На проверке</span>
+          <span class="cnt">1</span>
+        </div>
+
+        <div class="task-card task-dim">
+          <div style="width:28px;text-align:center;color:var(--text3);">✓</div>
+          <div class="task-info">
+            <div class="task-title">Рефакторинг корзины</div>
+            <div class="task-meta">
+              <span class="stage stage-test">Тест</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ADD TASK FROM DEV PAGE -->
+        <div class="add-task-row">
+          <input class="add-task-input" placeholder="Название задачи или #ID из Битрикс...">
+          <button class="add-task-btn">+ Добавить</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: PROJECTS + ANALYTICS (ВТОРОСТЕПЕННО) -->
+    <div style="display:flex;flex-direction:column;gap:16px;">
+
+      <!-- PROJECTS (переехали ВПРАВО) -->
+      <div class="card">
+        <div class="card-head">
+          <div class="dot yellow"></div>
+          <span class="title">Проекты</span>
+        </div>
+        <div class="project-tags">
+          <div class="project-tag active">Дакар <span class="pt-cnt">3</span></div>
+          <div class="project-tag">Маркет <span class="pt-cnt">1</span></div>
+          <div class="project-tag">CRM <span class="pt-cnt">2</span></div>
+          <div class="project-tag">API <span class="pt-cnt">1</span></div>
+        </div>
+      </div>
+
+      <!-- ANALYTICS: WIP ROW -->
+      <div class="card">
+        <div class="card-head">
+          <div class="dot cyan"></div>
+          <span class="title">Аналитика</span>
+        </div>
+        <div class="wip-row">
+          <div class="wip-cell"><span class="label">В работе</span><span class="val w">5</span></div>
+          <div class="wip-cell"><span class="label">Важные</span><span class="val y">2</span></div>
+          <div class="wip-cell"><span class="label">Горящие</span><span class="val o">3</span></div>
+          <div class="wip-cell">
+            <span class="label">% гор.</span><span class="val o">60%</span>
+            <div class="pct-bar"><div class="pct-fill" style="width:60%;background:var(--orange);"></div></div>
+          </div>
+          <div class="wip-cell"><span class="label">Просроч.</span><span class="val r">1</span></div>
+          <div class="wip-cell"><span class="label">Ср.проср.</span><span class="val r">2.5д</span></div>
+          <div class="wip-cell">
+            <span class="label">% проср.</span><span class="val r">20%</span>
+            <div class="pct-bar"><div class="pct-fill" style="width:20%;background:var(--red);"></div></div>
+          </div>
+        </div>
+
+        <!-- HOURS BY DAY CHART -->
+        <div class="mini-chart">
+          <div class="mini-chart-header">
+            <span class="mc-title">Часы по дням</span>
+            <span>
+              <span class="mc-val">5:28</span>
+              <span class="mc-prev">пред: 6:10</span>
+            </span>
+          </div>
+          <svg class="chart-svg" viewBox="0 0 300 60" preserveAspectRatio="none">
+            <!-- Grid -->
+            <line x1="0" y1="0" x2="300" y2="0" class="grid-line"/>
+            <line x1="0" y1="20" x2="300" y2="20" class="grid-line"/>
+            <line x1="0" y1="40" x2="300" y2="40" class="grid-line"/>
+            <line x1="0" y1="60" x2="300" y2="60" class="grid-line"/>
+            <!-- Axis labels -->
+            <text x="0" y="58">0:00</text>
+            <text x="0" y="20">5:00</text>
+            <text x="0" y="3">10:00</text>
+            <!-- Prev period (dashed) -->
+            <polyline points="0,30 50,25 100,18 150,22 200,15 250,28 300,12" class="prev"/>
+            <!-- Current period -->
+            <polyline points="0,35 50,22 100,28 150,15 200,20 250,12 300,18" class="current"/>
+          </svg>
+          <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text3);font-family:var(--mono);padding:0 20px;">
+            <span>Пн 21</span><span>Вт 22</span><span>Ср 23</span><span>Чт 24</span><span>Пт 25</span>
+          </div>
+        </div>
+
+        <div class="sep"></div>
+
+        <!-- TASKS WITH TIME LOGS -->
+        <div class="mini-chart">
+          <div class="mini-chart-header">
+            <span class="mc-title">Задачи со списаниями</span>
+            <span>
+              <span class="mc-val">7 задач</span>
+              <span class="mc-prev">пред: 5</span>
+            </span>
+          </div>
+          <svg class="chart-svg" viewBox="0 0 300 60" preserveAspectRatio="none">
+            <line x1="0" y1="0" x2="300" y2="0" class="grid-line"/>
+            <line x1="0" y1="30" x2="300" y2="30" class="grid-line"/>
+            <line x1="0" y1="60" x2="300" y2="60" class="grid-line"/>
+            <text x="0" y="58">0</text>
+            <text x="0" y="30">4</text>
+            <text x="0" y="3">7</text>
+            <polyline points="0,45 50,35 100,25 150,30 200,18 250,12 300,10" class="current"/>
+          </svg>
+        </div>
+
+        <div class="sep"></div>
+
+        <!-- VELOCITY -->
+        <div class="velocity-box">
+          <div class="velocity-num">12</div>
+          <div>
+            <div class="velocity-label">задач закрыто за период <span class="velocity-arrow">↑</span></div>
+            <div style="font-size:10px;color:var(--text3);">Прошлая нед.: 9 · Этот мес.: 38</div>
+          </div>
+        </div>
+
+        <div class="sep"></div>
+
+        <!-- STUCK -->
+        <div class="stuck-box">
+          <div class="stuck-num">3</div>
+          <div>
+            <div class="stuck-label">без движения &gt;7 дн. <span style="color:var(--orange);cursor:pointer;">нажмите для списка ▸</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /dev-main -->
+
+</div><!-- /dev-page -->
+
+</body>
+</html>

@@ -221,3 +221,38 @@ Stage Summary:
 - Commit f102b32 pushed to origin/main
 - All 5 user requests implemented
 - Vercel deployment should be live shortly
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: V74 — Full rewrite of dev panel matching dev-page-render.html template
+
+Work Log:
+- Read current tab-work.js (3984 lines) and dev-page-render.html template
+- Identified all differences between current implementation and template
+- Delegated full rewrite to subagent (full-stack-developer, opus model)
+- Subagent rewrote: TW_CSS, _twRenderDevPanel, _twRenderDevPanelTask, _twDevOpenDetail, plus added new functions
+- Fixed _twLoadDevAvatar: Bitrix24 user.get PHOTO can be string or object {small,medium,large}
+- Validated JS syntax with node -c
+- Pushed V74 to GitHub (commit cdfe22f)
+
+Stage Summary:
+- V74 changes implemented:
+  1. Avatar from Bitrix24 (user.get API, PHOTO field, handles string/object format)
+  2. Header card — full-width spanning both columns, background rgba(22,27,34,.85), margin 16px 20px 0
+  3. Green dot subtitle — REAL_STATUS=3 detection, pulsing dot + "работает над #ID"
+  4. Period chips — Сегодня/Вчера/Неделя/Прошл. нед./Месяц/Прошл. мес., _twDevChangePeriod(), no page reload
+  5. Two equal columns (1fr 1fr grid), GitHub Dark #0d1117 background
+  6. Left: Time tracking card + Plan/Актуальные задачи card with search + checkboxes
+  7. Search in Актуальные — instant filter by title or #ID
+  8. Task format: [Q-num/checkbox] Title → #ID · Stage badge · Project name
+  9. Sort: Новые first → В работе → rest dimmed (opacity:.4)
+  10. Checkboxes for non-plan tasks, FAB "В план (N)" at bottom center
+  11. Right: Projects card + Analytics card with clickable WIP cells
+  12. WIP clickable — В работе/Важные/Горящие open modal with filtered tasks
+  13. Task detail — center modal with blur backdrop, description show/hide, Escape/click-outside
+  14. Project popup with stage grouping, Escape/click-outside
+  15. All colors GitHub Dark hardcoded: #0d1117 bg, rgba(22,27,34,.85) cards, rgba(48,54,61,.6) borders
+  16. FAB button "В план" — bottom center, no glow, scale(.92) on press
+- File: js/tab-work.js (4288 lines after changes)
+- Pushed to origin/main, Vercel auto-deploy

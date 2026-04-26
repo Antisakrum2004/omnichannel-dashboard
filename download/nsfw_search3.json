@@ -1,0 +1,65 @@
+[
+  {
+    "url": "https://www.reddit.com",
+    "name": "Reddit - Dive into anything",
+    "snippet": "Reddit is a network of communities where people can dive into their interests, hobbies and passions. There's a community for whatever you're interested in on Reddit.",
+    "host_name": "www.reddit.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/jack-op11/waifu-diffusion/blob/main/tokenizer/vocab.json",
+    "name": "waifu-diffusion/tokenizer/vocab.json at main · jack-op11",
+    "snippet": "Contribute to jack-op11/waifu-diffusion development by creating an account on GitHub.",
+    "host_name": "github.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://rule34.gg",
+    "name": "Rule34.GG",
+    "snippet": "Rule34.GG: Your Ultimate Fantasy Hub where you can find what ever you want!",
+    "host_name": "rule34.gg",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://gonewildarchive.net/users/TurbulentEase9236",
+    "name": "GoneWildArchive - View deleted reddit profiles and posts",
+    "snippet": "A complete reddit archive for gonewild subreddits. Browse all deleted profiles and posts. Find and search your favorite reddit gonewild profiles",
+    "host_name": "gonewildarchive.net",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://huggingface.co/DaJulster/Job_compatibility_model/blame/a8395be3c61f28a5ab315057703ed3e89950612c/vocab.txt",
+    "name": "vocab.txt · DaJulster/Job_compatibility_model at",
+    "snippet": "We’re on a journey to advance and democratize artificial intelligence through open source and open science.",
+    "host_name": "huggingface.co",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.deviantart.com",
+    "name": "DeviantArt - The Largest Online Art Gallery and Community",
+    "snippet": "DeviantArt is where art and community thrive. Explore over 350 million pieces of art while connecting to fellow artists and art enthusiasts.",
+    "host_name": "www.deviantart.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.cs.cmu.edu/afs/cs.cmu.edu/project/cmt-40/Nice/Transfer/Chinese/xferlexicon.txt",
+    "name": "CMU School of Computer Science",
+    "snippet": "ä¸€å…«å…­äºŒå¹´ 1862 ä¸€å…«å…­äº”å¹´ 1865 ä¸€å…«å…­å…­å¹´ 1866 ä¸€å…«å…­å…«å¹´ 1868 ä¸€å…«å…­ä¹ å¹´ 1869 ä¸€å…«ä¸ƒâ—‹å¹´ 1870 ä¸€å…«ä¸ƒäºŒå¹´ 1872 ä¸€å…«ä¸ƒä¸‰å¹´ 1873 ä¸€å…«ä¸ƒå››å¹ ...",
+    "host_name": "www.cs.cmu.edu",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  }
+]

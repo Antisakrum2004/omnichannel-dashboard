@@ -136,14 +136,16 @@ function UnreadBadge({ count }: { count: number }) {
 function ChatListItem({
   channel,
   isActive,
+  effectiveUnread,
   onClick,
 }: {
   channel: Channel;
   isActive: boolean;
+  effectiveUnread: number;
   onClick: () => void;
 }) {
   const timeStr = formatTime(channel.lastActivity);
-  const hasUnread = channel.unreadCount > 0;
+  const hasUnread = effectiveUnread > 0;
 
   return (
     <div
@@ -187,7 +189,7 @@ function ChatListItem({
       </div>
       <div className="flex flex-col items-end gap-1 flex-shrink-0">
         <span className="text-[10px] text-slate-500">{timeStr}</span>
-        <UnreadBadge count={channel.unreadCount} />
+        <UnreadBadge count={effectiveUnread} />
       </div>
     </div>
   );
@@ -482,19 +484,50 @@ export default function OmnichannelApp() {
     setCollapsedGroups(prev => ({ ...prev, [source]: !prev[source] }));
   };
 
+  // Track last-seen activity per channel — for detecting NEW messages
+  // Bitrix24 webhook user always sees counter=0, so we detect new messages
+  // by comparing lastActivity timestamps
+  const [lastSeenActivity, setLastSeenActivity] = useState<Record<string, string>>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('omnichannel_last_seen');
+      return saved ? JSON.parse(saved) : {};
+    }
+    return {};
+  });
+
+  // Compute effective unread for each channel (client-side detection)
+  const getEffectiveUnread = useCallback((channel: Channel): number => {
+    // Telegram uses server-side unreadCount (from webhook)
+    if (channel.source === 'telegram') return channel.unreadCount;
+    // Bitrix24: webhook user always has counter=0, so detect by lastActivity
+    const seen = lastSeenActivity[channel.id];
+    if (!seen) return 0; // First time seeing this channel — don't show as unread
+    const seenTime = new Date(seen).getTime();
+    const activityTime = new Date(channel.lastActivity).getTime();
+    return activityTime > seenTime ? 1 : 0;
+  }, [lastSeenActivity]);
+
   // Mark channel as read (optimistic + server)
   const markChannelRead = useCallback(async (channelId: string) => {
-    // Optimistic: immediately clear unread in local state
-    setChannels(prev => prev.map(ch =>
-      ch.id === channelId ? { ...ch, unreadCount: 0 } : ch
-    ));
-    // Server: notify backend to mark as read
-    try {
-      await fetch(`/api/channels/${channelId}/read`, { method: 'POST' });
-    } catch (e) {
-      // Silently fail — the next poll will sync the correct state
+    // Optimistic: update lastSeenActivity so red dot disappears
+    const channel = channels.find(c => c.id === channelId);
+    if (channel) {
+      setLastSeenActivity(prev => {
+        const next = { ...prev, [channelId]: channel.lastActivity };
+        localStorage.setItem('omnichannel_last_seen', JSON.stringify(next));
+        return next;
+      });
     }
-  }, []);
+    // Also clear Telegram server-side unread
+    if (channelId.startsWith('tg_')) {
+      setChannels(prev => prev.map(ch =>
+        ch.id === channelId ? { ...ch, unreadCount: 0 } : ch
+      ));
+      try {
+        await fetch(`/api/channels/${channelId}/read`, { method: 'POST' });
+      } catch (e) { /* ignore */ }
+    }
+  }, [channels]);
 
   // Handle channel click — select + mark as read
   const handleChannelClick = useCallback((channelId: string) => {
@@ -509,6 +542,22 @@ export default function OmnichannelApp() {
       if (res.ok) {
         const data = await res.json();
         setChannels(data);
+        // On first load, initialize lastSeenActivity for all channels
+        // so they don't all appear as "unread"
+        setLastSeenActivity(prev => {
+          let changed = false;
+          const next = { ...prev };
+          for (const ch of data) {
+            if (!next[ch.id]) {
+              next[ch.id] = ch.lastActivity;
+              changed = true;
+            }
+          }
+          if (changed) {
+            localStorage.setItem('omnichannel_last_seen', JSON.stringify(next));
+          }
+          return changed ? next : prev;
+        });
       }
     } catch (e) {
       console.error('Failed to fetch channels:', e);
@@ -572,7 +621,7 @@ export default function OmnichannelApp() {
 
   // Play notification sound when new unread messages appear
   useEffect(() => {
-    const totalUnread = channels.reduce((s, c) => s + c.unreadCount, 0);
+    const totalUnread = channels.reduce((s, c) => s + getEffectiveUnread(c), 0);
     if (totalUnread > prevTotalUnreadRef.current && prevTotalUnreadRef.current >= 0) {
       // New messages arrived — play subtle notification
       try {
@@ -591,7 +640,7 @@ export default function OmnichannelApp() {
       }
     }
     prevTotalUnreadRef.current = totalUnread;
-  }, [channels]);
+  }, [channels, getEffectiveUnread]);
 
   useEffect(() => {
     if (!activeChannelId) { setMessages([]); return; }
@@ -658,6 +707,27 @@ export default function OmnichannelApp() {
     }
   };
 
+  // Fetch Telegram history
+  const [tgFetching, setTgFetching] = useState(false);
+  const fetchTelegramHistory = async () => {
+    setTgFetching(true);
+    setTgWebhookStatus('Загрузка истории ТГ...');
+    try {
+      const res = await fetch('/api/telegram/fetch-history', { method: 'POST' });
+      const data = await res.json();
+      if (data.ok) {
+        setTgWebhookStatus(`Загружено ${data.newMessages} сообщений из ${data.updatesProcessed} обновлений`);
+        await fetchChannels();
+      } else {
+        setTgWebhookStatus(`Ошибка: ${data.error || 'Не удалось загрузить историю'}`);
+      }
+    } catch (e) {
+      setTgWebhookStatus('Ошибка при загрузке истории');
+    } finally {
+      setTgFetching(false);
+    }
+  };
+
   const activeChannel = channels.find((c) => c.id === activeChannelId);
   const filteredChannels = searchQuery
     ? channels.filter((c) =>
@@ -667,7 +737,7 @@ export default function OmnichannelApp() {
     : channels;
 
   const grouped = groupChannels(filteredChannels);
-  const totalUnread = channels.reduce((s, c) => s + c.unreadCount, 0);
+  const totalUnread = channels.reduce((s, c) => s + getEffectiveUnread(c), 0);
   const uniqueSenders = messages.length > 0 ? [...new Set(messages.map(m => m.senderName))].length : 0;
 
   return (
@@ -738,7 +808,7 @@ export default function OmnichannelApp() {
               const src = SOURCES[source];
               const items = grouped[source] || [];
               const isCollapsed = collapsedGroups[source] || false;
-              const groupUnread = items.reduce((s, c) => s + c.unreadCount, 0);
+              const groupUnread = items.reduce((s, c) => s + getEffectiveUnread(c), 0);
 
               return (
                 <div key={source}>
@@ -767,6 +837,7 @@ export default function OmnichannelApp() {
                           key={ch.id}
                           channel={ch}
                           isActive={ch.id === activeChannelId}
+                          effectiveUnread={getEffectiveUnread(ch)}
                           onClick={() => handleChannelClick(ch.id)}
                         />
                       ))
@@ -827,8 +898,8 @@ export default function OmnichannelApp() {
                   </div>
                   <div className="flex items-center gap-3 text-[11px] text-slate-500 mt-0.5">
                     <span>{messages.length} сообщ.</span>
-                    {activeChannel.unreadCount > 0 && (
-                      <span className="text-red-400">{activeChannel.unreadCount} непроч.</span>
+                    {getEffectiveUnread(activeChannel) > 0 && (
+                      <span className="text-red-400">{getEffectiveUnread(activeChannel)} непроч.</span>
                     )}
                     <span>{uniqueSenders} участников</span>
                     {activeChannel.lastActivity && (
@@ -1080,7 +1151,14 @@ export default function OmnichannelApp() {
                     onClick={checkTgWebhook}
                     className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 transition-colors"
                   >
-                    Проверить статус
+                    Проверить
+                  </button>
+                  <button
+                    onClick={fetchTelegramHistory}
+                    disabled={tgFetching}
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium bg-green-700 hover:bg-green-600 text-white transition-colors disabled:opacity-50"
+                  >
+                    {tgFetching ? 'Загрузка...' : 'Загрузить историю'}
                   </button>
                 </div>
                 {tgWebhookStatus && (

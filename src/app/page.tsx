@@ -42,21 +42,74 @@ interface MessageFile {
 }
 
 // ─── Version ───
-const APP_VERSION = 'v1.7';
+const APP_VERSION = 'v1.8';
 
 // ─── Source Config ───
 const SOURCES: Record<string, { label: string; name: string; color: string; bg: string; icon: string }> = {
-  bitrix1:  { label: 'BX1', name: 'Наш Битрикс', color: '#3B8BD4', bg: '#1e3a5f', icon: '🏢' },
-  bitrix2:  { label: 'BX2', name: 'Дакар',       color: '#1D9E75', bg: '#1a3d2e', icon: '🏗️' },
-  bitrix3:  { label: 'BX3', name: 'Клиент В',    color: '#534AB7', bg: '#2d2a5e', icon: '📋' },
-  telegram: { label: 'TG',  name: 'Telegram',    color: '#229ED9', bg: '#1a3548', icon: '✈️' },
-  max:      { label: 'MAX', name: 'MAX',          color: '#FF6B00', bg: '#3d2a10', icon: '💬' },
-  whatsapp: { label: 'WA',  name: 'WhatsApp',     color: '#25D366', bg: '#1a3d24', icon: '📱' },
+  bitrix1:  { label: 'BX1', name: 'АтиЛаб (Наш Битрикс)', color: '#3B8BD4', bg: '#1e3a5f', icon: '🏢' },
+  bitrix2:  { label: 'BX2', name: 'Дакар',               color: '#1D9E75', bg: '#1a3d2e', icon: '🏗️' },
+  bitrix3:  { label: 'BX3', name: 'Клиент В',            color: '#534AB7', bg: '#2d2a5e', icon: '📋' },
+  telegram: { label: 'TG',  name: 'ТГ Чаты',             color: '#229ED9', bg: '#1a3548', icon: '✈️' },
+  max:      { label: 'MAX', name: 'МАКС',                color: '#FF6B00', bg: '#3d2a10', icon: '💬' },
+  whatsapp: { label: 'WA',  name: 'WhatsApp',             color: '#25D366', bg: '#1a3d24', icon: '📱' },
 };
 
 const SOURCE_ORDER = ['bitrix1', 'bitrix2', 'bitrix3', 'telegram', 'max', 'whatsapp'];
 
-// ─── Components ───
+// ─── SVG Icon Components (Modern Flat UI) ───
+
+function FilterIcon({ size = 20 }: { size?: number }) {
+  // Horizontal filter icon: two parallel lines with small circular toggles
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <line x1="4" y1="8" x2="20" y2="8" />
+      <circle cx="8" cy="8" r="2.5" fill="currentColor" stroke="currentColor" strokeWidth="1.5" />
+      <line x1="4" y1="16" x2="20" y2="16" />
+      <circle cx="16" cy="16" r="2.5" fill="currentColor" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  );
+}
+
+function SearchIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <circle cx="11" cy="11" r="7" />
+      <line x1="16.5" y1="16.5" x2="21" y2="21" />
+    </svg>
+  );
+}
+
+function ComposeIcon({ size = 20 }: { size?: number }) {
+  // Pencil inside a square/note — compose message icon
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="3" />
+      <path d="M15 3v6h6" />
+      <line x1="9" y1="13" x2="15" y2="13" />
+      <line x1="9" y1="17" x2="13" y2="17" />
+    </svg>
+  );
+}
+
+function ChevronIcon({ open, size = 14 }: { open: boolean; size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ transform: open ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }}
+    >
+      <polyline points="9 18 15 12 9 6" />
+    </svg>
+  );
+}
+
+// ─── UI Components ───
 
 function SourceBadge({ source }: { source: string }) {
   const s = SOURCES[source];
@@ -89,7 +142,6 @@ function ChatListItem({
   isActive: boolean;
   onClick: () => void;
 }) {
-  const src = SOURCES[channel.source] || SOURCES.bitrix1;
   const timeStr = formatTime(channel.lastActivity);
 
   return (
@@ -135,7 +187,7 @@ function ChatListItem({
   );
 }
 
-// Subtle muted colors — like Telegram/Bitrix dark theme
+// Subtle muted colors
 const MSG_STYLE = {
   incoming: {
     bubble: '#1c2533',
@@ -215,7 +267,6 @@ function SenderAvatar({ name, avatarUrl, size = 32 }: { name: string; avatarUrl?
 // ─── Rich text: clickable links ───
 function RichText({ text }: { text: string }) {
   const parts: (string | { url: string; label: string })[] = [];
-  
   const regex = /\[URL=([^\]]+)\]([^\[]+)\[\/URL\]|\[URL\]([^\[]+)\[\/URL\]|(\bhttps?:\/\/[^\s\[\]<>"')\]]+)/gi;
   let lastIndex = 0;
   let match;
@@ -224,7 +275,6 @@ function RichText({ text }: { text: string }) {
     if (match.index > lastIndex) {
       parts.push(text.slice(lastIndex, match.index));
     }
-    
     if (match[1] && match[2]) {
       parts.push({ url: match[1], label: match[2] });
     } else if (match[3]) {
@@ -232,18 +282,14 @@ function RichText({ text }: { text: string }) {
     } else if (match[4]) {
       parts.push({ url: match[4], label: match[4] });
     }
-    
     lastIndex = match.index + match[0].length;
   }
-  
   if (lastIndex < text.length) {
     parts.push(text.slice(lastIndex));
   }
-  
   if (parts.length === 0) {
     return <>{text}</>;
   }
-  
   return (
     <>
       {parts.map((part, i) => {
@@ -274,7 +320,6 @@ function MessageBubble({ msg, showName, currentUserName }: { msg: Message; showN
     hour: '2-digit',
     minute: '2-digit',
   });
-
   const s = isMe ? MSG_STYLE.outgoing : MSG_STYLE.incoming;
 
   return (
@@ -291,10 +336,7 @@ function MessageBubble({ msg, showName, currentUserName }: { msg: Message; showN
         style={{ background: s.bubble }}
       >
         {showName && (
-          <div
-            className="text-xs font-medium mb-0.5"
-            style={{ color: s.name }}
-          >
+          <div className="text-xs font-medium mb-0.5" style={{ color: s.name }}>
             {msg.senderName}
           </div>
         )}
@@ -303,7 +345,6 @@ function MessageBubble({ msg, showName, currentUserName }: { msg: Message; showN
             <RichText text={msg.text} />
           </div>
         )}
-        {/* Inline images */}
         {msg.files && msg.files.length > 0 && (
           <div className="flex flex-col gap-1.5 mt-1.5">
             {msg.files.map((file) => (
@@ -319,10 +360,7 @@ function MessageBubble({ msg, showName, currentUserName }: { msg: Message; showN
             ))}
           </div>
         )}
-        <div
-          className="text-[10px] mt-0.5 text-right"
-          style={{ color: s.time }}
-        >
+        <div className="text-[10px] mt-0.5 text-right" style={{ color: s.time }}>
           {time}
         </div>
       </div>
@@ -330,14 +368,13 @@ function MessageBubble({ msg, showName, currentUserName }: { msg: Message; showN
   );
 }
 
-// ─── Helper ───
+// ─── Helpers ───
 function formatTime(dateStr: string): string {
   if (!dateStr) return '';
   const d = new Date(dateStr);
   const now = new Date();
   const diffMs = now.getTime() - d.getTime();
   const diffDays = Math.floor(diffMs / 86400000);
-
   if (diffDays === 0) {
     return d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
   } else if (diffDays === 1) {
@@ -362,12 +399,11 @@ function groupChannels(channels: Channel[]) {
   const groups: Record<string, Channel[]> = {};
   for (const src of SOURCE_ORDER) {
     const items = channels.filter((c) => c.source === src);
-    if (items.length > 0) groups[src] = items;
+    groups[src] = items; // Always include all groups, even if empty
   }
   return groups;
 }
 
-// ─── Bitrix portal domain lookup ───
 function getBitrixDomain(source: string): string | null {
   switch (source) {
     case 'bitrix1': return '1c-cms.bitrix24.ru';
@@ -392,12 +428,22 @@ export default function OmnichannelApp() {
   const [userNameInput, setUserNameInput] = useState<string>('');
   const [showNameSelector, setShowNameSelector] = useState(false);
   
-  // Add chat modal
+  // Collapsible groups state — persist in localStorage
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('omnichannel_collapsed_groups');
+      return saved ? JSON.parse(saved) : {};
+    }
+    return {};
+  });
+
+  // Modals
   const [showAddChatModal, setShowAddChatModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [tgWebhookStatus, setTgWebhookStatus] = useState<string>('');
   const [tgWebhookLoading, setTgWebhookLoading] = useState(false);
 
-  // Load saved user name from localStorage on mount
+  // Load saved user name
   useEffect(() => {
     const saved = localStorage.getItem('omnichannel_current_user');
     if (saved) {
@@ -407,6 +453,15 @@ export default function OmnichannelApp() {
       setShowNameSelector(true);
     }
   }, []);
+
+  // Persist collapsed groups
+  useEffect(() => {
+    localStorage.setItem('omnichannel_collapsed_groups', JSON.stringify(collapsedGroups));
+  }, [collapsedGroups]);
+
+  const toggleGroup = (source: string) => {
+    setCollapsedGroups(prev => ({ ...prev, [source]: !prev[source] }));
+  };
 
   // Fetch channels
   const fetchChannels = useCallback(async () => {
@@ -423,7 +478,7 @@ export default function OmnichannelApp() {
     }
   }, []);
 
-  // Fetch messages for active channel
+  // Fetch messages
   const fetchMessages = useCallback(async (channelId: string) => {
     try {
       const res = await fetch(`/api/channels/${channelId}?limit=50`);
@@ -436,17 +491,15 @@ export default function OmnichannelApp() {
     }
   }, []);
 
-  // Sync Bitrix dialogs
+  // Sync
   const syncBitrix = useCallback(async (portal: string) => {
     setSyncing(true);
     try {
-      const res = await fetch('/api/sync', {
+      await fetch('/api/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ portal }),
       });
-      const data = await res.json();
-      console.log('Sync result:', data);
       await fetchChannels();
     } catch (e) {
       console.error('Sync failed:', e);
@@ -455,12 +508,21 @@ export default function OmnichannelApp() {
     }
   }, [fetchChannels]);
 
-  // Initial load
-  useEffect(() => {
-    fetchChannels();
+  const syncAll = useCallback(async () => {
+    setSyncing(true);
+    try {
+      await fetch('/api/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ portal: 'bitrix1' }) });
+      await fetch('/api/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ portal: 'bitrix2' }) });
+      await fetchChannels();
+    } catch (e) {
+      console.error('Sync all failed:', e);
+    } finally {
+      setSyncing(false);
+    }
   }, [fetchChannels]);
 
-  // Auto-sync Bitrix on mount
+  useEffect(() => { fetchChannels(); }, [fetchChannels]);
+
   useEffect(() => {
     const doSync = async () => {
       await syncBitrix('bitrix1');
@@ -470,16 +532,10 @@ export default function OmnichannelApp() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Load messages when channel changes
   useEffect(() => {
-    if (activeChannelId) {
-      fetchMessages(activeChannelId);
-    } else {
-      setMessages([]);
-    }
+    if (activeChannelId) { fetchMessages(activeChannelId); } else { setMessages([]); }
   }, [activeChannelId, fetchMessages]);
 
-  // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -492,11 +548,7 @@ export default function OmnichannelApp() {
       const res = await fetch('/api/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          channelId: activeChannelId,
-          text: inputText.trim(),
-          operatorId: currentUserName || undefined,
-        }),
+        body: JSON.stringify({ channelId: activeChannelId, text: inputText.trim(), operatorId: currentUserName || undefined }),
       });
       const data = await res.json();
       if (data.ok) {
@@ -513,7 +565,7 @@ export default function OmnichannelApp() {
     }
   };
 
-  // Setup Telegram webhook
+  // Telegram webhook setup
   const setupTelegramWebhook = async () => {
     setTgWebhookLoading(true);
     setTgWebhookStatus('');
@@ -524,11 +576,7 @@ export default function OmnichannelApp() {
         body: JSON.stringify({ url: 'https://my-project-eta-lemon.vercel.app' }),
       });
       const data = await res.json();
-      if (data.ok) {
-        setTgWebhookStatus('Webhook зарегистрирован! Теперь добавьте бота в группу.');
-      } else {
-        setTgWebhookStatus(`Ошибка: ${data.error || 'Не удалось установить webhook'}`);
-      }
+      setTgWebhookStatus(data.ok ? 'Webhook зарегистрирован!' : `Ошибка: ${data.error || 'Не удалось установить webhook'}`);
     } catch (e) {
       setTgWebhookStatus('Ошибка сети при настройке webhook');
     } finally {
@@ -536,16 +584,11 @@ export default function OmnichannelApp() {
     }
   };
 
-  // Check Telegram webhook status
   const checkTgWebhook = async () => {
     try {
       const res = await fetch('/api/telegram/setup');
       const data = await res.json();
-      if (data.webhookInfo?.url) {
-        setTgWebhookStatus(`Webhook: ${data.webhookInfo.url}`);
-      } else {
-        setTgWebhookStatus('Webhook не настроен');
-      }
+      setTgWebhookStatus(data.webhookInfo?.url ? `Webhook: ${data.webhookInfo.url}` : 'Webhook не настроен');
     } catch (e) {
       setTgWebhookStatus('Не удалось проверить статус');
     }
@@ -553,106 +596,126 @@ export default function OmnichannelApp() {
 
   const activeChannel = channels.find((c) => c.id === activeChannelId);
   const filteredChannels = searchQuery
-    ? channels.filter(
-        (c) =>
-          c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (c.lastMessage || '').toLowerCase().includes(searchQuery.toLowerCase())
+    ? channels.filter((c) =>
+        c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (c.lastMessage || '').toLowerCase().includes(searchQuery.toLowerCase())
       )
     : channels;
 
   const grouped = groupChannels(filteredChannels);
   const totalUnread = channels.reduce((s, c) => s + c.unreadCount, 0);
-
-  // Count unique participants in current chat
-  const uniqueSenders = messages.length > 0
-    ? [...new Set(messages.map(m => m.senderName))].length
-    : 0;
+  const uniqueSenders = messages.length > 0 ? [...new Set(messages.map(m => m.senderName))].length : 0;
 
   return (
     <div className="flex h-screen overflow-hidden">
-      {/* ─── LEFT PANEL: Channel List ─── */}
+      {/* ─── LEFT PANEL: Channel List (320px) ─── */}
       <div
-        className="w-[260px] flex-shrink-0 h-full flex flex-col border-r border-slate-800"
+        className="w-[320px] flex-shrink-0 h-full flex flex-col border-r border-slate-800"
         style={{ background: '#0d1117' }}
       >
-        <div className="px-3 pt-4 pb-2">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-base font-bold text-white">Все чаты <span className="text-[10px] font-normal text-slate-500 ml-1">{APP_VERSION}</span></h2>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setShowNameSelector(true)}
-                className="w-7 h-7 rounded-lg bg-slate-800 text-slate-400 flex items-center justify-center hover:bg-slate-700 hover:text-white transition-colors text-xs"
-                title={currentUserName ? `Вы: ${currentUserName}` : 'Указать имя'}
-              >
-                👤
-              </button>
-              <button
-                onClick={() => syncBitrix('bitrix1')}
-                disabled={syncing}
-                className="w-7 h-7 rounded-lg bg-slate-800 text-slate-400 flex items-center justify-center hover:bg-slate-700 hover:text-white transition-colors text-xs"
-                title="Синхронизировать Битрикс"
-              >
-                {syncing ? '⏳' : '🔄'}
-              </button>
-            </div>
+        {/* ─── Header: Title + Version ─── */}
+        <div className="px-4 pt-4 pb-1">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-bold text-white">
+              Все чаты <span className="text-[10px] font-normal text-slate-500 ml-1">{APP_VERSION}</span>
+            </h2>
           </div>
-          
-          {/* Current user indicator */}
-          {currentUserName && (
-            <div className="flex items-center gap-2 mb-2 px-0.5">
-              <SenderAvatar name={currentUserName} size={22} />
-              <span className="text-[11px] text-slate-300 font-medium">{currentUserName}</span>
-              <span className="text-[10px] text-slate-600">· {APP_VERSION}</span>
-            </div>
-          )}
-
-          <input
-            className="w-full bg-[#1e293b] border border-slate-700 rounded-lg text-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-500 placeholder-slate-500"
-            placeholder="Поиск чатов..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
         </div>
 
+        {/* ─── Toolbar: Filter | Search | Compose ─── */}
+        <div className="px-4 py-2 flex items-center gap-2">
+          {/* Filter / Settings button */}
+          <button
+            onClick={() => setShowSettingsModal(true)}
+            className="w-9 h-9 rounded-xl bg-slate-800/80 text-slate-400 flex items-center justify-center hover:bg-slate-700 hover:text-white transition-colors flex-shrink-0"
+            title="Настройки дашборда"
+          >
+            <FilterIcon size={18} />
+          </button>
+
+          {/* Search input */}
+          <div className="flex-1 relative">
+            <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500">
+              <SearchIcon size={14} />
+            </div>
+            <input
+              className="w-full bg-[#1e293b] border border-slate-700 rounded-xl text-slate-200 pl-8 pr-3 py-2 text-sm outline-none focus:border-blue-500 placeholder-slate-500"
+              placeholder="Поиск чатов..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+
+          {/* Compose / Add chat button (blue FAB) */}
+          <button
+            onClick={() => setShowAddChatModal(true)}
+            className="w-9 h-9 rounded-xl bg-blue-500 text-white flex items-center justify-center hover:bg-blue-400 transition-colors flex-shrink-0 shadow-lg shadow-blue-500/20"
+            title="Написать / Добавить чат"
+          >
+            <ComposeIcon size={16} />
+          </button>
+        </div>
+
+        {/* Current user indicator */}
+        {currentUserName && (
+          <div className="flex items-center gap-2 px-4 pb-2">
+            <SenderAvatar name={currentUserName} size={20} />
+            <span className="text-[11px] text-slate-300 font-medium">{currentUserName}</span>
+            <span className="text-[10px] text-slate-600">· {APP_VERSION}</span>
+          </div>
+        )}
+
+        {/* ─── Channel Groups (collapsible) ─── */}
         <div className="flex-1 overflow-y-auto">
           {loading ? (
-            <div className="text-center text-slate-500 py-8 text-sm">
-              Загрузка чатов...
-            </div>
-          ) : channels.length === 0 ? (
-            <div className="text-center text-slate-500 py-8 text-sm px-4">
-              Чатов пока нет. Синхронизируйте Битрикс или подключите Telegram.
-            </div>
+            <div className="text-center text-slate-500 py-8 text-sm">Загрузка чатов...</div>
           ) : (
-            Object.entries(grouped).map(([source, items]) => {
+            SOURCE_ORDER.map((source) => {
               const src = SOURCES[source];
+              const items = grouped[source] || [];
+              const isCollapsed = collapsedGroups[source] || false;
               const groupUnread = items.reduce((s, c) => s + c.unreadCount, 0);
+
               return (
                 <div key={source}>
-                  <div className="flex items-center gap-2 px-3 py-2 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                  {/* Group header — clickable to expand/collapse */}
+                  <button
+                    className="w-full flex items-center gap-2 px-4 py-2 text-[12px] font-semibold text-slate-400 uppercase tracking-wider hover:bg-slate-800/50 transition-colors"
+                    onClick={() => toggleGroup(source)}
+                  >
+                    <ChevronIcon open={!isCollapsed} />
                     <span
-                      className="w-2 h-2 rounded-full"
+                      className="w-2 h-2 rounded-full flex-shrink-0"
                       style={{ background: src?.color || '#666' }}
                     />
-                    <span>{src?.name || source}</span>
+                    <span className="truncate text-left">{src?.name || source}</span>
                     <span className="text-slate-600 ml-auto">{items.length}</span>
                     {groupUnread > 0 && <UnreadBadge count={groupUnread} />}
-                  </div>
-                  {items.map((ch) => (
-                    <ChatListItem
-                      key={ch.id}
-                      channel={ch}
-                      isActive={ch.id === activeChannelId}
-                      onClick={() => setActiveChannelId(ch.id)}
-                    />
-                  ))}
+                  </button>
+
+                  {/* Expanded: chat items */}
+                  {!isCollapsed && (
+                    items.length === 0 ? (
+                      <div className="text-[11px] text-slate-600 px-4 pl-10 py-2 italic">Пусто</div>
+                    ) : (
+                      items.map((ch) => (
+                        <ChatListItem
+                          key={ch.id}
+                          channel={ch}
+                          isActive={ch.id === activeChannelId}
+                          onClick={() => setActiveChannelId(ch.id)}
+                        />
+                      ))
+                    )
+                  )}
                 </div>
               );
             })
           )}
         </div>
 
-        <div className="px-3 py-3 border-t border-slate-800 text-center">
+        {/* Footer stats */}
+        <div className="px-4 py-3 border-t border-slate-800 text-center">
           <div className="text-[11px] text-slate-600">
             {channels.length} чатов · {totalUnread} непрочитанных
           </div>
@@ -666,19 +729,13 @@ export default function OmnichannelApp() {
             <div className="text-center text-slate-500">
               <div className="text-5xl mb-4">💬</div>
               <div className="text-lg font-medium">Выберите чат</div>
-              <div className="text-sm mt-1">
-                Чтобы начать, выберите чат в левой колонке
-              </div>
+              <div className="text-sm mt-1">Чтобы начать, выберите чат в левой колонке</div>
             </div>
           </div>
         ) : (
           <>
-            {/* ─── HEADER ABOVE CHAT: Channel info + stats ─── */}
-            <div
-              className="border-b border-slate-800"
-              style={{ background: '#0d1117' }}
-            >
-              {/* Row 1: Channel name + avatar + source */}
+            {/* Header above chat */}
+            <div className="border-b border-slate-800" style={{ background: '#0d1117' }}>
               <div className="flex items-center gap-3 px-5 py-2.5">
                 {/* Channel avatar */}
                 {activeChannel.avatarUrl ? (
@@ -704,7 +761,6 @@ export default function OmnichannelApp() {
                     <span className="text-sm font-semibold truncate">{activeChannel.name}</span>
                     <SourceBadge source={activeChannel.source} />
                   </div>
-                  {/* Stats line */}
                   <div className="flex items-center gap-3 text-[11px] text-slate-500 mt-0.5">
                     <span>{messages.length} сообщ.</span>
                     {activeChannel.unreadCount > 0 && (
@@ -716,7 +772,6 @@ export default function OmnichannelApp() {
                     )}
                   </div>
                 </div>
-                {/* Quick actions in header */}
                 <div className="flex items-center gap-1.5 flex-shrink-0">
                   {getBitrixDomain(activeChannel.source) && (
                     <a
@@ -735,9 +790,7 @@ export default function OmnichannelApp() {
             {/* Messages */}
             <div className="flex-1 overflow-y-auto px-5 py-4">
               {messages.length === 0 ? (
-                <div className="text-center text-slate-500 py-8 text-sm">
-                  Нет сообщений в этом чате
-                </div>
+                <div className="text-center text-slate-500 py-8 text-sm">Нет сообщений в этом чате</div>
               ) : (
                 messages.map((msg, idx) => {
                   const prevMsg = idx > 0 ? messages[idx - 1] : null;
@@ -749,10 +802,7 @@ export default function OmnichannelApp() {
             </div>
 
             {/* Input */}
-            <div
-              className="px-5 py-3 border-t border-slate-800"
-              style={{ background: '#0d1117' }}
-            >
+            <div className="px-5 py-3 border-t border-slate-800" style={{ background: '#0d1117' }}>
               <div className="flex items-center gap-2 bg-[#1e293b] border border-slate-700 rounded-xl px-4 py-2 focus-within:border-blue-500 transition-colors">
                 <input
                   className="flex-1 bg-transparent outline-none text-sm text-slate-200 placeholder-slate-500"
@@ -760,10 +810,7 @@ export default function OmnichannelApp() {
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSend();
-                    }
+                    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
                   }}
                   disabled={sending}
                 />
@@ -814,23 +861,15 @@ export default function OmnichannelApp() {
               <div className="text-sm font-semibold">{activeChannel.name}</div>
               <div className="flex items-center justify-center gap-1.5 mt-1.5">
                 <SourceBadge source={activeChannel.source} />
-                <span className="text-xs text-slate-500">
-                  {SOURCES[activeChannel.source]?.name}
-                </span>
+                <span className="text-xs text-slate-500">{SOURCES[activeChannel.source]?.name}</span>
               </div>
-              <div className="text-[10px] text-slate-600 mt-1">
-                {activeChannel.externalId}
-              </div>
+              <div className="text-[10px] text-slate-600 mt-1">{activeChannel.externalId}</div>
             </div>
 
-            {/* Actions / Controls */}
+            {/* Actions */}
             <div className="px-4 py-4 flex-1 overflow-y-auto">
-              {/* Add chat section */}
-              <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
-                Действия
-              </div>
+              <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Действия</div>
               <div className="space-y-2">
-                {/* Add Telegram chat button */}
                 <button
                   onClick={() => setShowAddChatModal(true)}
                   className="w-full flex items-center gap-2.5 py-2.5 px-3 rounded-lg text-sm text-slate-300 hover:bg-[#1a3548] border border-slate-700 hover:border-[#229ED9]/30 transition-colors"
@@ -842,7 +881,6 @@ export default function OmnichannelApp() {
                   </div>
                 </button>
 
-                {/* Open in Bitrix24 */}
                 {getBitrixDomain(activeChannel.source) && (
                   <a
                     href={`https://${getBitrixDomain(activeChannel.source)}`}
@@ -858,7 +896,6 @@ export default function OmnichannelApp() {
                   </a>
                 )}
 
-                {/* Sync button */}
                 {activeChannel.source.startsWith('bitrix') && (
                   <button
                     onClick={() => syncBitrix(activeChannel.source)}
@@ -874,10 +911,8 @@ export default function OmnichannelApp() {
                 )}
               </div>
 
-              {/* Chat details section */}
-              <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 mt-5">
-                Детали чата
-              </div>
+              {/* Chat details */}
+              <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 mt-5">Детали чата</div>
               <div className="space-y-2 text-sm text-slate-400">
                 <div className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: SOURCES[activeChannel.source]?.color || '#666' }} />
@@ -901,6 +936,144 @@ export default function OmnichannelApp() {
         )}
       </div>
 
+      {/* ─── SETTINGS MODAL ─── */}
+      {showSettingsModal && (
+        <div
+          className="fixed inset-0 bg-black/70 flex items-center justify-center z-50"
+          onClick={() => setShowSettingsModal(false)}
+        >
+          <div
+            className="bg-[#151b28] border border-slate-700 rounded-2xl p-6 w-[520px] max-w-[90vw] max-h-[85vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center text-slate-400">
+                  <FilterIcon size={20} />
+                </div>
+                <div>
+                  <div className="text-lg font-bold text-white">Настройки дашборда</div>
+                  <div className="text-xs text-slate-500">{APP_VERSION}</div>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowSettingsModal(false)}
+                className="w-8 h-8 rounded-lg bg-slate-800 text-slate-400 flex items-center justify-center hover:bg-slate-700 hover:text-white transition-colors text-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Operator Identity */}
+            <div className="mb-5">
+              <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Оператор</div>
+              <div className="flex items-center gap-3 bg-[#1e293b] rounded-xl p-3 border border-slate-700">
+                <SenderAvatar name={currentUserName || 'Оператор'} size={36} />
+                <div className="flex-1">
+                  <div className="text-sm font-medium text-white">{currentUserName || 'Не указано'}</div>
+                  <div className="text-[11px] text-slate-500">Ваши сообщения подсвечены зелёным</div>
+                </div>
+                <button
+                  onClick={() => { setShowSettingsModal(false); setShowNameSelector(true); }}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-700 text-slate-300 hover:bg-slate-600 transition-colors"
+                >
+                  Изменить
+                </button>
+              </div>
+            </div>
+
+            {/* Sync */}
+            <div className="mb-5">
+              <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Синхронизация</div>
+              <div className="space-y-2">
+                <button
+                  onClick={syncAll}
+                  disabled={syncing}
+                  className="w-full flex items-center gap-3 py-2.5 px-3 rounded-xl text-sm text-slate-300 hover:bg-slate-800 border border-slate-700 transition-colors disabled:opacity-50"
+                >
+                  <span className="text-lg">{syncing ? '⏳' : '🔄'}</span>
+                  <div className="text-left">
+                    <div className="font-medium">Синхронизировать все порталы</div>
+                    <div className="text-[10px] text-slate-500">Обновить чаты и сообщения из Битрикс24</div>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* Telegram Bot */}
+            <div className="mb-5">
+              <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Telegram бот</div>
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <button
+                    onClick={setupTelegramWebhook}
+                    disabled={tgWebhookLoading}
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium bg-[#229ED9] hover:bg-[#1b8ac4] text-white transition-colors disabled:opacity-50"
+                  >
+                    {tgWebhookLoading ? 'Настройка...' : 'Настроить Webhook'}
+                  </button>
+                  <button
+                    onClick={checkTgWebhook}
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 transition-colors"
+                  >
+                    Проверить статус
+                  </button>
+                </div>
+                {tgWebhookStatus && (
+                  <div className="text-xs text-slate-400 bg-slate-800/50 rounded-lg p-2">
+                    {tgWebhookStatus}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Connected Portals */}
+            <div className="mb-5">
+              <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Подключённые порталы</div>
+              <div className="space-y-2">
+                <div className="flex items-center gap-3 bg-[#1e293b] rounded-xl p-3 border border-slate-700">
+                  <span className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold" style={{ background: '#1e3a5f', color: '#3B8BD4' }}>1</span>
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-white">АтиЛаб (Наш Битрикс)</div>
+                    <div className="text-[10px] text-slate-500">1c-cms.bitrix24.ru · Чтение и запись</div>
+                  </div>
+                  <span className="w-2 h-2 rounded-full bg-green-500" title="Активен" />
+                </div>
+                <div className="flex items-center gap-3 bg-[#1e293b] rounded-xl p-3 border border-slate-700">
+                  <span className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold" style={{ background: '#1a3d2e', color: '#1D9E75' }}>2</span>
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-white">Дакар</div>
+                    <div className="text-[10px] text-slate-500">dakar.bitrix24.ru · Только чтение (стелс)</div>
+                  </div>
+                  <span className="w-2 h-2 rounded-full bg-green-500" title="Активен" />
+                </div>
+                <div className="flex items-center gap-3 bg-[#1e293b] rounded-xl p-3 border border-slate-700 opacity-50">
+                  <span className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold" style={{ background: '#1a3548', color: '#229ED9' }}>T</span>
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-white">Telegram</div>
+                    <div className="text-[10px] text-slate-500">Бот подключён · Ожидание webhook</div>
+                  </div>
+                  <span className="w-2 h-2 rounded-full bg-yellow-500" title="Ожидание" />
+                </div>
+                <div className="flex items-center gap-3 bg-[#1e293b] rounded-xl p-3 border border-slate-700 opacity-30">
+                  <span className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold" style={{ background: '#3d2a10', color: '#FF6B00' }}>M</span>
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-white">МАКС</div>
+                    <div className="text-[10px] text-slate-500">Не подключён</div>
+                  </div>
+                  <span className="w-2 h-2 rounded-full bg-slate-600" title="Неактивен" />
+                </div>
+              </div>
+            </div>
+
+            {/* About */}
+            <div className="text-center text-[11px] text-slate-600 border-t border-slate-800 pt-4">
+              Omnichannel Dashboard · {APP_VERSION}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ─── WHO ARE YOU MODAL ─── */}
       {showNameSelector && (
         <div
@@ -914,9 +1087,8 @@ export default function OmnichannelApp() {
             <div className="text-lg font-bold text-white mb-1">Как вас зовут?</div>
             <div className="text-sm text-slate-400 mb-4">
               Введите ваше имя так, как оно отображается в чатах. 
-              Ваши сообщения будут показаны <span className="text-green-400 font-medium">зелёным</span> и сдвинуты <span className="text-green-400 font-medium">вправо</span>.
+              Ваши сообщения будут показаны <span className="text-green-400 font-medium">зелёным</span> цветом.
             </div>
-            
             {messages.length > 0 && (
               <div className="mb-3">
                 <div className="text-xs text-slate-500 mb-1.5">Участники чата:</div>
@@ -937,7 +1109,6 @@ export default function OmnichannelApp() {
                 </div>
               </div>
             )}
-            
             <input
               className="w-full bg-[#1e293b] border border-slate-600 rounded-lg text-white px-4 py-2.5 text-sm outline-none focus:border-green-500 placeholder-slate-500 mb-4"
               placeholder="Введите ваше имя..."
@@ -983,7 +1154,7 @@ export default function OmnichannelApp() {
         </div>
       )}
 
-      {/* ─── ADD TELEGRAM CHAT MODAL ─── */}
+      {/* ─── ADD CHAT MODAL ─── */}
       {showAddChatModal && (
         <div
           className="fixed inset-0 bg-black/70 flex items-center justify-center z-50"
@@ -995,88 +1166,107 @@ export default function OmnichannelApp() {
           >
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl" style={{ background: '#1a3548' }}>
-                ✈️
+                <ComposeIcon size={20} />
               </div>
               <div>
-                <div className="text-lg font-bold text-white">Добавить Telegram чат</div>
-                <div className="text-xs text-slate-500">Подключите группу или личный чат</div>
+                <div className="text-lg font-bold text-white">Добавить чат</div>
+                <div className="text-xs text-slate-500">Подключите новый источник сообщений</div>
               </div>
             </div>
 
-            {/* Step 1: Setup webhook */}
-            <div className="mb-4">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="w-6 h-6 rounded-full bg-[#229ED9]/20 text-[#229ED9] flex items-center justify-center text-xs font-bold">1</span>
-                <span className="text-sm font-medium text-slate-200">Настройте Webhook</span>
-              </div>
-              <div className="text-xs text-slate-400 mb-2 pl-8">
-                Зарегистрируйте webhook, чтобы бот получал сообщения
-              </div>
-              <div className="pl-8 flex gap-2">
-                <button
-                  onClick={setupTelegramWebhook}
-                  disabled={tgWebhookLoading}
-                  className="px-3 py-1.5 rounded-lg text-xs font-medium bg-[#229ED9] hover:bg-[#1b8ac4] text-white transition-colors disabled:opacity-50"
-                >
-                  {tgWebhookLoading ? 'Настройка...' : 'Настроить Webhook'}
-                </button>
-                <button
-                  onClick={checkTgWebhook}
-                  className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 transition-colors"
-                >
-                  Проверить статус
-                </button>
-              </div>
-              {tgWebhookStatus && (
-                <div className="text-xs text-slate-400 mt-2 pl-8 bg-slate-800/50 rounded-lg p-2">
-                  {tgWebhookStatus}
+            {/* Source options */}
+            <div className="space-y-2 mb-5">
+              {/* Telegram */}
+              <button
+                onClick={() => {
+                  setShowAddChatModal(false);
+                  setShowSettingsModal(true);
+                }}
+                className="w-full flex items-center gap-3 py-3 px-4 rounded-xl text-sm text-slate-300 hover:bg-[#1a3548] border border-slate-700 hover:border-[#229ED9]/30 transition-colors"
+              >
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center text-lg" style={{ background: '#1a3548' }}>
+                  ✈️
                 </div>
-              )}
+                <div className="text-left flex-1">
+                  <div className="font-medium">Telegram группа или чат</div>
+                  <div className="text-[10px] text-slate-500">Добавьте бота в группу — чат появится автоматически</div>
+                </div>
+                <ChevronIcon open={false} size={16} />
+              </button>
+
+              {/* Bitrix24 */}
+              <button
+                onClick={() => syncAll()}
+                disabled={syncing}
+                className="w-full flex items-center gap-3 py-3 px-4 rounded-xl text-sm text-slate-300 hover:bg-[#1e3a5f] border border-slate-700 hover:border-[#3B8BD4]/30 transition-colors disabled:opacity-50"
+              >
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center text-lg" style={{ background: '#1e3a5f' }}>
+                  🏢
+                </div>
+                <div className="text-left flex-1">
+                  <div className="font-medium">Синхронизировать Битрикс24</div>
+                  <div className="text-[10px] text-slate-500">Обновить список чатов из всех порталов</div>
+                </div>
+                <span className="text-sm">{syncing ? '⏳' : '🔄'}</span>
+              </button>
+
+              {/* Coming soon */}
+              <div className="flex items-center gap-3 py-3 px-4 rounded-xl text-sm text-slate-600 border border-slate-800 opacity-50">
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center text-lg" style={{ background: '#3d2a10' }}>
+                  💬
+                </div>
+                <div className="text-left flex-1">
+                  <div className="font-medium">МАКС</div>
+                  <div className="text-[10px] text-slate-600">Скоро</div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 py-3 px-4 rounded-xl text-sm text-slate-600 border border-slate-800 opacity-50">
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center text-lg" style={{ background: '#1a3d24' }}>
+                  📱
+                </div>
+                <div className="text-left flex-1">
+                  <div className="font-medium">WhatsApp</div>
+                  <div className="text-[10px] text-slate-600">Скоро</div>
+                </div>
+              </div>
             </div>
 
-            {/* Step 2: Add bot to group */}
-            <div className="mb-4">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="w-6 h-6 rounded-full bg-[#229ED9]/20 text-[#229ED9] flex items-center justify-center text-xs font-bold">2</span>
-                <span className="text-sm font-medium text-slate-200">Добавьте бота в группу</span>
+            {/* Telegram setup instructions (always visible) */}
+            <div className="border-t border-slate-800 pt-4">
+              <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+                Как подключить Telegram чат
               </div>
-              <div className="text-xs text-slate-400 pl-8 space-y-1.5">
-                <p>1. Откройте Telegram группу</p>
-                <p>2. Нажмите <span className="text-slate-200 font-medium">Add Members</span> (Добавить участников)</p>
-                <p>3. Найдите вашего бота по <span className="text-slate-200 font-medium">@username</span></p>
-                <p>4. Добавьте бота и сделайте его <span className="text-slate-200 font-medium">администратором</span></p>
+
+              <div className="space-y-3">
+                <div className="flex gap-2.5">
+                  <span className="w-5 h-5 rounded-full bg-[#229ED9]/20 text-[#229ED9] flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5">1</span>
+                  <div className="text-xs text-slate-400">
+                    <span className="text-slate-200 font-medium">Настройте Webhook</span> — нажмите кнопку в настройках дашборда
+                  </div>
+                </div>
+                <div className="flex gap-2.5">
+                  <span className="w-5 h-5 rounded-full bg-[#229ED9]/20 text-[#229ED9] flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5">2</span>
+                  <div className="text-xs text-slate-400">
+                    <span className="text-slate-200 font-medium">Добавьте бота в группу</span> — Add Members → найдите по @username
+                  </div>
+                </div>
+                <div className="flex gap-2.5">
+                  <span className="w-5 h-5 rounded-full bg-[#229ED9]/20 text-[#229ED9] flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5">3</span>
+                  <div className="text-xs text-slate-400">
+                    <span className="text-slate-200 font-medium">Выключите Group Privacy</span> — @BotFather → /mybots → Bot Settings → Group Privacy → Turn off
+                  </div>
+                </div>
+                <div className="flex gap-2.5">
+                  <span className="w-5 h-5 rounded-full bg-green-600/20 text-green-400 flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5">✓</span>
+                  <div className="text-xs text-slate-400">
+                    Чат <span className="text-slate-200 font-medium">автоматически появится</span> в дашборде после первого сообщения
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Step 3: Privacy mode */}
-            <div className="mb-4">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="w-6 h-6 rounded-full bg-[#229ED9]/20 text-[#229ED9] flex items-center justify-center text-xs font-bold">3</span>
-                <span className="text-sm font-medium text-slate-200">Выключите Group Privacy</span>
-              </div>
-              <div className="text-xs text-slate-400 pl-8 space-y-1.5">
-                <p>1. Откройте <span className="text-slate-200 font-medium">@BotFather</span> в Telegram</p>
-                <p>2. Отправьте <code className="bg-slate-800 px-1 rounded">/mybots</code></p>
-                <p>3. Выберите вашего бота</p>
-                <p>4. <span className="text-slate-200 font-medium">Bot Settings → Group Privacy → Turn off</span></p>
-                <p className="text-slate-500 mt-1">⚠️ Без этого бот видит только команды (/start и т.д.), а не все сообщения</p>
-              </div>
-            </div>
-
-            {/* Step 4: Done */}
-            <div className="mb-4">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="w-6 h-6 rounded-full bg-green-600/20 text-green-400 flex items-center justify-center text-xs font-bold">✓</span>
-                <span className="text-sm font-medium text-slate-200">Готово!</span>
-              </div>
-              <div className="text-xs text-slate-400 pl-8">
-                Как только кто-то напишет сообщение в группу, чат автоматически появится в дашборде.
-                Также чат появится, если кто-то напишет боту в личку (отправит <code className="bg-slate-800 px-1 rounded">/start</code>).
-              </div>
-            </div>
-
-            {/* Close button */}
-            <div className="flex justify-end pt-2 border-t border-slate-800">
+            <div className="flex justify-end pt-4 border-t border-slate-800 mt-4">
               <button
                 onClick={() => setShowAddChatModal(false)}
                 className="px-4 py-2 rounded-lg text-sm font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 transition-colors"

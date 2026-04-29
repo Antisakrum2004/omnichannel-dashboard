@@ -1,27 +1,27 @@
 ---
 Task ID: 1
-Agent: Super Z (main)
-Task: Build omnichannel dashboard from scratch
+Agent: Main
+Task: V1.8 - Collapsible channel groups, toolbar icons, settings modal, Telegram webhook
 
 Work Log:
-- Initialized Next.js 16 project with TypeScript + Tailwind CSS + shadcn/ui
-- Created Prisma schema with Channel, Message, Operator, SourceConfig models
-- Built Bitrix24 API adapter (im.recent.list, im.dialog.messages.get, im.message.add)
-- Built Telegram Bot API adapter (webhook, sendMessage, getChat, setWebhook)
-- Built Gateway with message normalization from all sources
-- Created API routes: /api/channels, /api/channels/[id], /api/send, /api/sync
-- Created webhook routes: /api/webhook/bitrix/[portal], /api/webhook/telegram
-- Built React frontend: 3-column layout (channels, messages, contacts)
-- Deployed to Vercel: https://my-project-eta-lemon.vercel.app
-- Implemented stateless fallback: works without DB on Vercel serverless
-- Both Bitrix24 portals connected: Наш (46 dialogs) + Дакар (49 dialogs) = 95 channels
-- Stealth mode for Дакар: readOnly=true, no messages sent
+- Widened left panel from 260px to 320px
+- Added toolbar with 3 icons: Filter (settings), Search, Compose (blue FAB)
+- Created SVG icon components: FilterIcon, SearchIcon, ComposeIcon, ChevronIcon
+- Implemented collapsible channel groups with chevron animation
+- Groups: АтиЛаб (Наш Битрикс), Дакар, Клиент В, ТГ Чаты, МАКС, WhatsApp
+- Collapsed groups show red unread badges
+- Group collapse state persisted in localStorage
+- Created Settings modal (Filter icon opens it): operator identity, sync, Telegram webhook, connected portals
+- Created Add Chat modal (Compose icon opens it): Telegram, Bitrix sync, MAX/WhatsApp "coming soon"
+- Created /api/telegram/setup route for webhook registration
+- Added TELEGRAM_BOT_TOKEN to Vercel environment variables
+- Registered Telegram webhook successfully
+- Cleaned git history of leaked secrets (notion_page.json)
+- Force pushed to GitHub, deployed to Vercel
 
 Stage Summary:
-- V1.1 deployed and working on Vercel
-- Channels API returns live data from both Bitrix24 portals
-- Messages API reads directly from Bitrix24
-- Send API works for Наш Битрикс, blocked for Дакар
-- Neon Postgres needed for persistence (pending)
-- Telegram Bot pending (waiting for token from user)
-- Pusher real-time integration pending
+- Live at: https://my-project-eta-lemon.vercel.app
+- Version: v1.8
+- Telegram webhook: registered and verified
+- GitHub: pushed to Antisakrum2004/omnichannel-dashboard
+- Vercel env: TELEGRAM_BOT_TOKEN added

@@ -1,0 +1,58 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Channel {
+  id           String    @id @default(cuid())
+  source       String    // "bitrix1", "bitrix2", "bitrix3", "telegram", "max", "whatsapp"
+  externalId   String    // chat_id in telegram, dialog_id in bitrix
+  name         String    // Display name
+  avatar       String?   // Avatar URL or initials
+  unreadCount  Int       @default(0)
+  lastMessage  String?   // Last message preview
+  lastActivity DateTime? @default(now())
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  messages Message[]
+
+  @@unique([source, externalId])
+}
+
+model Message {
+  id          String   @id @default(cuid())
+  channelId   String
+  senderName  String
+  senderType  String   // "client" or "operator"
+  text        String
+  timestamp   DateTime @default(now())
+  isRead      Boolean  @default(false)
+  operatorId  String?  // Who from our team replied
+  externalId  String?  // ID in the source system (telegram message_id, bitrix message_id)
+
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@index([channelId, timestamp])
+}
+
+model Operator {
+  id         String  @id @default(cuid())
+  name       String
+  telegramId String?
+  isOnline   Boolean @default(false)
+  lastSeen   DateTime @default(now())
+}
+
+model SourceConfig {
+  id     String @id @default(cuid())
+  source String @unique // "bitrix1", "bitrix2", "bitrix3", "telegram", "max", "whatsapp"
+  label  String // "Наш Битрикс", "Дакар", etc.
+  color  String // Hex color
+  domain String? // For Bitrix portals
+  config String // JSON string with tokens, secrets, etc.
+}

@@ -1,0 +1,10 @@
+node_modules/
+.next/
+.env
+.env.local
+db/*.db
+db/*.db-journal
+.vercel/
+*.log
+.zscripts/
+dist/

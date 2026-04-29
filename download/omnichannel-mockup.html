@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="ru" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Омниканал — Единое окно общения</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0f1117; color: #e2e8f0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; overflow: hidden; height: 100vh; }
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+  ::-webkit-scrollbar-thumb:hover { background: #475569; }
+  .chat-item { transition: background 0.15s; cursor: pointer; }
+  .chat-item:hover { background: #1e293b; }
+  .chat-item.active { background: #1e3a5f; }
+  .msg-bubble-in { background: #1e293b; border-radius: 4px 16px 16px 16px; }
+  .msg-bubble-out { background: #1d4ed8; border-radius: 16px 4px 16px 16px; }
+  .source-badge { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; letter-spacing: 0.5px; }
+  .group-header { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: #64748b; padding: 8px 12px 4px; }
+  .unread-badge { background: #ef4444; color: white; font-size: 11px; font-weight: 700; min-width: 20px; height: 20px; border-radius: 10px; display: flex; align-items: center; justify-content: center; padding: 0 5px; }
+  .input-area { background: #1e293b; border: 1px solid #334155; border-radius: 12px; }
+  .input-area:focus-within { border-color: #3b82f6; }
+  .send-btn { background: #3b82f6; color: white; border: none; border-radius: 8px; padding: 8px 20px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
+  .send-btn:hover { background: #2563eb; }
+  .contact-event { font-size: 12px; padding: 6px 0; border-bottom: 1px solid #1e293b; color: #94a3b8; }
+  .search-input { background: #1e293b; border: 1px solid #334155; border-radius: 8px; color: #e2e8f0; padding: 8px 12px; width: 100%; font-size: 13px; outline: none; }
+  .search-input:focus { border-color: #3b82f6; }
+  .search-input::placeholder { color: #475569; }
+  .typing-dots span { animation: blink 1.4s infinite both; }
+  .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes blink { 0%, 80%, 100% { opacity: 0; } 40% { opacity: 1; } }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+// ─── Source config ───
+const SOURCES = {
+  bitrix1: { label: 'BX1', name: 'Клиент А', color: '#3B8BD4', bg: '#1e3a5f' },
+  bitrix2: { label: 'BX2', name: 'Клиент Б', color: '#1D9E75', bg: '#1a3d2e' },
+  bitrix3: { label: 'BX3', name: 'Наш Битрикс', color: '#534AB7', bg: '#2d2a5e' },
+  telegram: { label: 'TG', name: 'Telegram', color: '#229ED9', bg: '#1a3548' },
+  max:     { label: 'MAX', name: 'MAX', color: '#FF6B00', bg: '#3d2a10' },
+  whatsapp:{ label: 'WA', name: 'WhatsApp', color: '#25D366', bg: '#1a3d24' },
+};
+
+// ─── Mock data ───
+const CHANNELS = [
+  // Bitrix1 — Клиент А
+  { id: 'c1', source: 'bitrix1', external_id: 'chat101', name: 'Проект Альфа — общий', unread: 3, last_msg: 'Когда будет готов дизайн?', last_time: '10:42' },
+  { id: 'c2', source: 'bitrix1', external_id: 'chat102', name: 'Техподдержка', unread: 0, last_msg: 'Спасибо, проблема решена', last_time: '09:15' },
+  { id: 'c3', source: 'bitrix1', external_id: 'chat103', name: 'Марина — менеджер', unread: 0, last_msg: 'Отправила ТЗ на почту', last_time: 'Вчера' },
+
+  // Bitrix2 — Клиент Б
+  { id: 'c4', source: 'bitrix2', external_id: 'chat201', name: 'Проект Бета — вопросы', unread: 0, last_msg: 'Окей, договорились', last_time: '11:30' },
+  { id: 'c5', source: 'bitrix2', external_id: 'chat202', name: 'Бухгалтерия', unread: 0, last_msg: 'Счёт №45 оплачен', last_time: 'Вчера' },
+
+  // Bitrix3 — Наш
+  { id: 'c6', source: 'bitrix3', external_id: 'chat301', name: 'Внутренний — разраб', unread: 1, last_msg: 'Кто деплоил прод?', last_time: '12:05' },
+  { id: 'c7', source: 'bitrix3', external_id: 'chat302', name: 'Внутренний — продажи', unread: 0, last_msg: 'Новая заявка с сайта', last_time: '08:30' },
+  { id: 'c8', source: 'bitrix3', external_id: 'chat303', name: 'DevOps алерты', unread: 0, last_msg: 'CPU normal на проде', last_time: '07:00' },
+
+  // Telegram
+  { id: 'c9',  source: 'telegram', external_id: 'tg_-1001', name: 'Проект Гамма (клиенты)', unread: 5, last_msg: 'Когда релиз? уже 3 раза переносили', last_time: '12:31' },
+  { id: 'c10', source: 'telegram', external_id: 'tg_-1002', name: 'Партнёры — интеграции', unread: 2, last_msg: 'API документация устарела', last_time: '11:58' },
+  { id: 'c11', source: 'telegram', external_id: 'tg_-1003', name: 'Дизайн-команда', unread: 0, last_msg: 'Макеты в Figma обновлены', last_time: '10:20' },
+
+  // MAX
+  { id: 'c12', source: 'max', external_id: 'max_501', name: 'Дмитрий — VIP клиент', unread: 0, last_msg: 'Спасибо за консультацию', last_time: '09:45' },
+];
+
+const MESSAGES = {
+  c1: [
+    { id: 'm1', sender: 'Марина К.', sender_type: 'client', text: 'Добрый день! Подскажите по статусу дизайна главной страницы?', time: '10:30' },
+    { id: 'm2', sender: 'Иван', sender_type: 'operator', text: 'Добрый! Дизайн в работе, сегодня-завтра покажем первый драфт.', time: '10:32' },
+    { id: 'm3', sender: 'Марина К.', sender_type: 'client', text: 'Отлично, а мобильную версию тоже сделаете сразу?', time: '10:35' },
+    { id: 'm4', sender: 'Иван', sender_type: 'operator', text: 'Да, адаптив идёт в комплекте. Обычно показываем десктоп + мобайл вместе.', time: '10:37' },
+    { id: 'm5', sender: 'Марина К.', sender_type: 'client', text: 'Супер, жду! Ещё вопрос — можно будет потом переделать цвета?', time: '10:39' },
+    { id: 'm6', sender: 'Марина К.', sender_type: 'client', text: 'Когда будет готов дизайн?', time: '10:42' },
+  ],
+  c2: [
+    { id: 'm7', sender: 'Алексей П.', sender_type: 'client', text: 'У нас не открывается страница отчётов', time: '08:50' },
+    { id: 'm8', sender: 'Ольга', sender_type: 'operator', text: 'Проверяю... Какой браузер используете?', time: '08:52' },
+    { id: 'm9', sender: 'Алексей П.', sender_type: 'client', text: 'Chrome последней версии', time: '08:55' },
+    { id: 'm10', sender: 'Ольга', sender_type: 'operator', text: 'Нашли проблему, была ошибка в кэше. Почистите Ctrl+Shift+Delete и попробуйте снова', time: '09:10' },
+    { id: 'm11', sender: 'Алексей П.', sender_type: 'client', text: 'Спасибо, проблема решена', time: '09:15' },
+  ],
+  c3: [
+    { id: 'm12', sender: 'Марина', sender_type: 'client', text: 'Привет! Новое ТЗ готово, отправляю на почту', time: '16:30' },
+    { id: 'm13', sender: 'Дмитрий', sender_type: 'operator', text: 'Принял, посмотрю завтра утром', time: '16:35' },
+    { id: 'm14', sender: 'Марина', sender_type: 'client', text: 'Отправила ТЗ на почту', time: '16:40' },
+  ],
+  c4: [
+    { id: 'm15', sender: 'Павел С.', sender_type: 'client', text: 'Нам нужно перенести срок сдачи на неделю', time: '10:00' },
+    { id: 'm16', sender: 'Анна', sender_type: 'operator', text: 'Давайте обсудим. Какая причина?', time: '10:05' },
+    { id: 'm17', sender: 'Павел С.', sender_type: 'client', text: 'Ждём согласование от руководства', time: '10:20' },
+    { id: 'm18', sender: 'Анна', sender_type: 'operator', text: 'Понял, согласуем перенос. Подготовлю допник', time: '11:25' },
+    { id: 'm19', sender: 'Павел С.', sender_type: 'client', text: 'Окей, договорились', time: '11:30' },
+  ],
+  c5: [
+    { id: 'm20', sender: 'Бухгалтерия', sender_type: 'client', text: 'Счёт №45 выставлен 15 апреля', time: '14:00' },
+    { id: 'm21', sender: 'Ольга', sender_type: 'operator', text: 'Принято, оплатим до конца недели', time: '14:15' },
+    { id: 'm22', sender: 'Бухгалтерия', sender_type: 'client', text: 'Счёт №45 оплачен', time: '16:00' },
+  ],
+  c6: [
+    { id: 'm23', sender: 'Сергей', sender_type: 'client', text: 'Ночью был деплой, кто авторизовал?', time: '11:50' },
+    { id: 'm24', sender: 'Артём', sender_type: 'operator', text: 'Это я, хофикс по критикалу. PR #234', time: '11:55' },
+    { id: 'm25', sender: 'Сергей', sender_type: 'client', text: 'Кто деплоил прод?', time: '12:05' },
+  ],
+  c7: [
+    { id: 'm26', sender: 'Лидген', sender_type: 'client', text: 'Новая заявка: разработка интернет-магазина, бюджет 500К', time: '08:20' },
+    { id: 'm27', sender: 'Максим', sender_type: 'operator', text: 'Принял, свяжусь с клиентом сегодня', time: '08:25' },
+    { id: 'm28', sender: 'Лидген', sender_type: 'client', text: 'Новая заявка с сайта', time: '08:30' },
+  ],
+  c8: [
+    { id: 'm29', sender: 'Мониторинг', sender_type: 'client', text: 'ALERT: CPU > 90% on prod-web-01', time: '06:45' },
+    { id: 'm30', sender: 'Артём', sender_type: 'operator', text: 'Проверяю, возможно cron-задача', time: '06:50' },
+    { id: 'm31', sender: 'Мониторинг', sender_type: 'client', text: 'RESOLVED: CPU normal на проде', time: '07:00' },
+  ],
+  c9: [
+    { id: 'm32', sender: 'Алексей М.', sender_type: 'client', text: 'Ребят, когда релиз? Вроде договаривались на 20-е', time: '12:00' },
+    { id: 'm33', sender: 'Иван', sender_type: 'operator', text: 'Перенесли на 25-е, нужно доделать интеграцию с платежами', time: '12:05' },
+    { id: 'm34', sender: 'Виктор Д.', sender_type: 'client', text: 'Опять перенос?? Нам уже презентацию отменили из-за этого', time: '12:10' },
+    { id: 'm35', sender: 'Наталья С.', sender_type: 'client', text: 'Да, клиенты уже ждут. Можно хотя бы бету показать?', time: '12:20' },
+    { id: 'm36', sender: 'Алексей М.', sender_type: 'client', text: 'Когда релиз? уже 3 раза переносили', time: '12:31' },
+  ],
+  c10: [
+    { id: 'm37', sender: 'Partner Bot', sender_type: 'client', text: 'Endpoint /api/v2/users возвращает 500', time: '11:30' },
+    { id: 'm38', sender: 'Артём', sender_type: 'operator', text: 'Смотрю, какой запрос отправляете?', time: '11:35' },
+    { id: 'm39', sender: 'Partner Bot', sender_type: 'client', text: 'GET с параметром page=3', time: '11:40' },
+    { id: 'm40', sender: 'Partner Bot', sender_type: 'client', text: 'API документация устарела', time: '11:58' },
+  ],
+  c11: [
+    { id: 'm41', sender: 'Даша (дизайн)', sender_type: 'client', text: 'Обновила главную, добавила анимации', time: '09:30' },
+    { id: 'm42', sender: 'Кирилл', sender_type: 'operator', text: 'Класс! Скинешь ссылку на прототип?', time: '09:45' },
+    { id: 'm43', sender: 'Даша (дизайн)', sender_type: 'client', text: 'Макеты в Figma обновлены', time: '10:20' },
+  ],
+  c12: [
+    { id: 'm44', sender: 'Дмитрий В.', sender_type: 'client', text: 'Добрый день! Нужна консультация по Enterprise тарифу', time: '09:00' },
+    { id: 'm45', sender: 'Анна', sender_type: 'operator', text: 'Здравствуйте! Конечно, расскажу подробнее. Какие функции вас интересуют?', time: '09:10' },
+    { id: 'm46', sender: 'Дмитрий В.', sender_type: 'client', text: 'SSO, аудит логов и кастомные интеграции', time: '09:20' },
+    { id: 'm47', sender: 'Анна', sender_type: 'operator', text: 'Всё есть в Enterprise. Подготовлю коммерческое предложение с расчётом', time: '09:30' },
+    { id: 'm48', sender: 'Дмитрий В.', sender_type: 'client', text: 'Спасибо за консультацию', time: '09:45' },
+  ],
+};
+
+const CONTACT_EVENTS = {
+  c1: ['Задача #45 — в работе', 'Счёт #12 — выставлен', 'Договор подписан 15.03'],
+  c2: ['Обращение #89 — закрыто', 'Тариф: Стандарт'],
+  c3: ['Роль: Менеджер проекта', '2 активных проекта'],
+  c4: ['Проект Бета — активен', 'Оплата: просрочена 5 дней'],
+  c5: ['Бюджет: 1.2М руб/мес'],
+  c6: ['Роль: Senior Dev', 'Онлайн'],
+  c7: ['Воронка: 23 лидов сегодня'],
+  c8: ['Сервер: prod-web-01', 'Uptime: 99.97%'],
+  c9: ['Группа: 156 участников', '2 открытых вопроса'],
+  c10: ['Статус: партнер', 'API v2 доступ'],
+  c11: ['Команда: 4 дизайнера', 'Figma Pro'],
+  c12: ['VIP клиент', 'LTV: 2.5М руб', '3 проекта'],
+};
+
+// Group channels by source
+function groupChannels(channels) {
+  const groups = {};
+  const order = ['bitrix1', 'bitrix2', 'bitrix3', 'telegram', 'max', 'whatsapp'];
+  order.forEach(src => {
+    const items = channels.filter(c => c.source === src);
+    if (items.length > 0) {
+      groups[src] = items;
+    }
+  });
+  return groups;
+}
+
+// ─── Components ───
+
+function SourceBadge({ source, size = 'sm' }) {
+  const s = SOURCES[source];
+  if (!s) return null;
+  return (
+    <span className="source-badge" style={{ background: s.bg, color: s.color, border: `1px solid ${s.color}33` }}>
+      {s.label}
+    </span>
+  );
+}
+
+function ChatListItem({ channel, isActive, onClick }) {
+  const src = SOURCES[channel.source];
+  return (
+    <div className={`chat-item flex items-center gap-3 px-3 py-2.5 ${isActive ? 'active' : ''}`} onClick={onClick}>
+      <div className="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold" style={{ background: src.bg, color: src.color }}>
+        {channel.name.charAt(0)}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5">
+          <SourceBadge source={channel.source} />
+          <span className="text-sm font-medium truncate">{channel.name}</span>
+        </div>
+        <div className="text-xs text-slate-400 truncate mt-0.5">{channel.last_msg}</div>
+      </div>
+      <div className="flex flex-col items-end gap-1 flex-shrink-0">
+        <span className="text-[10px] text-slate-500">{channel.last_time}</span>
+        {channel.unread > 0 && <div className="unread-badge">{channel.unread}</div>}
+      </div>
+    </div>
+  );
+}
+
+function LeftPanel({ channels, activeId, onSelect, searchQuery, onSearch }) {
+  const groups = groupChannels(channels);
+  return (
+    <div className="w-[260px] flex-shrink-0 h-full flex flex-col border-r border-slate-800" style={{ background: '#0d1117' }}>
+      <div className="px-3 pt-4 pb-2">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-base font-bold text-white">Все чаты</h2>
+          <button className="w-7 h-7 rounded-lg bg-slate-800 text-slate-400 flex items-center justify-center hover:bg-slate-700 hover:text-white transition-colors text-lg" title="Добавить чат">+</button>
+        </div>
+        <input
+          className="search-input"
+          placeholder="Поиск чатов..."
+          value={searchQuery}
+          onChange={e => onSearch(e.target.value)}
+        />
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        {Object.entries(groups).map(([source, items]) => {
+          const src = SOURCES[source];
+          const totalUnread = items.reduce((s, c) => s + c.unread, 0);
+          return (
+            <div key={source}>
+              <div className="group-header flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full" style={{ background: src.color }}></span>
+                <span>{src.name}</span>
+                <span className="text-slate-600 ml-auto">{items.length}</span>
+                {totalUnread > 0 && <div className="unread-badge text-[10px]" style={{ minWidth: 16, height: 16, fontSize: 10 }}>{totalUnread}</div>}
+              </div>
+              {items.map(ch => (
+                <ChatListItem
+                  key={ch.id}
+                  channel={ch}
+                  isActive={ch.id === activeId}
+                  onClick={() => onSelect(ch.id)}
+                />
+              ))}
+            </div>
+          );
+        })}
+      </div>
+      <div className="px-3 py-3 border-t border-slate-800 text-center">
+        <div className="text-[11px] text-slate-600">11 чатов · 11 непрочитанных</div>
+      </div>
+    </div>
+  );
+}
+
+function MessageBubble({ msg }) {
+  const isOut = msg.sender_type === 'operator';
+  return (
+    <div className={`flex ${isOut ? 'justify-end' : 'justify-start'} mb-3`}>
+      <div className={`max-w-[75%] ${isOut ? 'msg-bubble-out' : 'msg-bubble-in'} px-4 py-2.5`}>
+        <div className={`text-xs font-medium mb-1 ${isOut ? 'text-blue-200' : 'text-slate-400'}`}>
+          {msg.sender}
+        </div>
+        <div className="text-sm leading-relaxed">{msg.text}</div>
+        <div className={`text-[10px] mt-1 ${isOut ? 'text-blue-300' : 'text-slate-500'}`}>
+          {msg.time}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CenterPanel({ channel, messages, inputText, onInputChange, onSend }) {
+  const src = channel ? SOURCES[channel.source] : null;
+  const messagesEndRef = useRef(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [channel?.id]);
+
+  if (!channel) {
+    return (
+      <div className="flex-1 flex items-center justify-center" style={{ background: '#0f1117' }}>
+        <div className="text-center text-slate-500">
+          <div className="text-5xl mb-4">💬</div>
+          <div className="text-lg font-medium">Выберите чат</div>
+          <div className="text-sm mt-1">Чтобы начать, выберите чат в левой колонке</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex-1 flex flex-col h-full" style={{ background: '#0f1117' }}>
+      {/* Top bar */}
+      <div className="flex items-center gap-3 px-5 py-3 border-b border-slate-800" style={{ background: '#0d1117' }}>
+        <div className="w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold" style={{ background: src.bg, color: src.color }}>
+          {channel.name.charAt(0)}
+        </div>
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold">{channel.name}</span>
+            <SourceBadge source={channel.source} />
+          </div>
+          <div className="text-[11px] text-slate-500">{src.name} · {channel.external_id}</div>
+        </div>
+        <div className="ml-auto flex items-center gap-2">
+          <div className="typing-dots text-slate-500 text-xs" style={{ display: 'none' }}>
+            печатает<span>.</span><span>.</span><span>.</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto px-5 py-4">
+        {(messages || []).map(msg => (
+          <MessageBubble key={msg.id} msg={msg} />
+        ))}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Input */}
+      <div className="px-5 py-3 border-t border-slate-800" style={{ background: '#0d1117' }}>
+        <div className="input-area flex items-center gap-2 px-4 py-2">
+          <input
+            className="flex-1 bg-transparent outline-none text-sm text-slate-200 placeholder-slate-500"
+            placeholder="Написать сообщение..."
+            value={inputText}
+            onChange={e => onInputChange(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSend(); } }}
+          />
+          <button className="send-btn text-sm" onClick={onSend}>Отправить</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RightPanel({ channel }) {
+  if (!channel) {
+    return (
+      <div className="w-[270px] flex-shrink-0 h-full border-l border-slate-800" style={{ background: '#0d1117' }}>
+        <div className="flex items-center justify-center h-full text-slate-600 text-sm">Нет выбранного чата</div>
+      </div>
+    );
+  }
+
+  const src = SOURCES[channel.source];
+  const events = CONTACT_EVENTS[channel.id] || [];
+  const initials = channel.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+
+  return (
+    <div className="w-[270px] flex-shrink-0 h-full border-l border-slate-800 flex flex-col" style={{ background: '#0d1117' }}>
+      {/* Contact card */}
+      <div className="px-5 py-6 text-center border-b border-slate-800">
+        <div className="w-16 h-16 rounded-full mx-auto flex items-center justify-center text-xl font-bold mb-3" style={{ background: src.bg, color: src.color }}>
+          {initials}
+        </div>
+        <div className="text-sm font-semibold">{channel.name}</div>
+        <div className="flex items-center justify-center gap-1.5 mt-1.5">
+          <SourceBadge source={channel.source} />
+          <span className="text-xs text-slate-500">{src.name}</span>
+        </div>
+        <div className="text-xs text-slate-500 mt-1">{channel.external_id}</div>
+      </div>
+
+      {/* Recent events */}
+      <div className="px-5 py-4 flex-1">
+        <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Последние события</div>
+        {events.map((ev, i) => (
+          <div key={i} className="contact-event flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: src.color }}></span>
+            {ev}
+          </div>
+        ))}
+      </div>
+
+      {/* Actions */}
+      <div className="px-5 py-4 border-t border-slate-800">
+        {channel.source.startsWith('bitrix') && (
+          <button className="w-full py-2.5 rounded-lg text-sm font-medium border border-slate-700 text-slate-300 hover:bg-slate-800 transition-colors">
+            Открыть в Битрикс24
+          </button>
+        )}
+        {channel.source === 'telegram' && (
+          <button className="w-full py-2.5 rounded-lg text-sm font-medium border border-slate-700 text-slate-300 hover:bg-slate-800 transition-colors">
+            Открыть в Telegram
+          </button>
+        )}
+        {channel.source === 'max' && (
+          <button className="w-full py-2.5 rounded-lg text-sm font-medium border border-slate-700 text-slate-300 hover:bg-slate-800 transition-colors">
+            Открыть в MAX
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── App ───
+function App() {
+  const [activeChatId, setActiveChatId] = useState('c9');
+  const [inputText, setInputText] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const activeChannel = CHANNELS.find(c => c.id === activeChatId);
+  const activeMessages = MESSAGES[activeChatId] || [];
+
+  const filteredChannels = searchQuery
+    ? CHANNELS.filter(c =>
+        c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        c.last_msg.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : CHANNELS;
+
+  const handleSend = () => {
+    if (!inputText.trim()) return;
+    // In a real app this would go to the backend
+    alert('Отправка: "' + inputText + '"\n\n(в реальном приложении — POST /api/send → Gateway → Telegram/Bitrix/MAX API)');
+    setInputText('');
+  };
+
+  return (
+    <div className="flex h-screen">
+      <LeftPanel
+        channels={filteredChannels}
+        activeId={activeChatId}
+        onSelect={setActiveChatId}
+        searchQuery={searchQuery}
+        onSearch={setSearchQuery}
+      />
+      <CenterPanel
+        channel={activeChannel}
+        messages={activeMessages}
+        inputText={inputText}
+        onInputChange={setInputText}
+        onSend={handleSend}
+      />
+      <RightPanel channel={activeChannel} />
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

@@ -42,7 +42,7 @@ interface MessageFile {
 }
 
 // ─── Version ───
-const APP_VERSION = 'v1.8';
+const APP_VERSION = 'v1.9';
 
 // ─── Source Config ───
 const SOURCES: Record<string, { label: string; name: string; color: string; bg: string; icon: string }> = {
@@ -443,6 +443,19 @@ export default function OmnichannelApp() {
   const [tgWebhookStatus, setTgWebhookStatus] = useState<string>('');
   const [tgWebhookLoading, setTgWebhookLoading] = useState(false);
 
+  // Escape key to close all modals
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowAddChatModal(false);
+        setShowSettingsModal(false);
+        setShowNameSelector(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   // Load saved user name
   useEffect(() => {
     const saved = localStorage.getItem('omnichannel_current_user');
@@ -521,19 +534,18 @@ export default function OmnichannelApp() {
     }
   }, [fetchChannels]);
 
-  useEffect(() => { fetchChannels(); }, [fetchChannels]);
+  // Auto-polling: refresh channels every 5 seconds, messages every 3 seconds
+  useEffect(() => {
+    fetchChannels();
+    const interval = setInterval(fetchChannels, 5000);
+    return () => clearInterval(interval);
+  }, [fetchChannels]);
 
   useEffect(() => {
-    const doSync = async () => {
-      await syncBitrix('bitrix1');
-      await syncBitrix('bitrix2');
-    };
-    doSync();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    if (activeChannelId) { fetchMessages(activeChannelId); } else { setMessages([]); }
+    if (!activeChannelId) { setMessages([]); return; }
+    fetchMessages(activeChannelId);
+    const interval = setInterval(() => fetchMessages(activeChannelId), 3000);
+    return () => clearInterval(interval);
   }, [activeChannelId, fetchMessages]);
 
   useEffect(() => {
@@ -617,7 +629,7 @@ export default function OmnichannelApp() {
         <div className="px-4 pt-4 pb-1">
           <div className="flex items-center justify-between">
             <h2 className="text-base font-bold text-white">
-              Все чаты <span className="text-[10px] font-normal text-slate-500 ml-1">{APP_VERSION}</span>
+              Все чаты <span className="text-xs font-semibold text-white/60 ml-2">{APP_VERSION}</span>
             </h2>
           </div>
         </div>
@@ -646,11 +658,11 @@ export default function OmnichannelApp() {
             />
           </div>
 
-          {/* Compose / Add chat button (blue FAB) */}
+          {/* Add chat button — same style as settings button */}
           <button
             onClick={() => setShowAddChatModal(true)}
-            className="w-9 h-9 rounded-xl bg-blue-500 text-white flex items-center justify-center hover:bg-blue-400 transition-colors flex-shrink-0 shadow-lg shadow-blue-500/20"
-            title="Написать / Добавить чат"
+            className="w-9 h-9 rounded-xl bg-slate-800/80 text-slate-400 flex items-center justify-center hover:bg-slate-700 hover:text-white transition-colors flex-shrink-0"
+            title="Добавить чат"
           >
             <ComposeIcon size={16} />
           </button>
@@ -1161,118 +1173,44 @@ export default function OmnichannelApp() {
           onClick={() => setShowAddChatModal(false)}
         >
           <div
-            className="bg-[#151b28] border border-slate-700 rounded-2xl p-6 w-[480px] max-w-[90vw] max-h-[85vh] overflow-y-auto"
+            className="bg-[#151b28] border border-slate-700 rounded-2xl p-6 w-[420px] max-w-[90vw]"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl" style={{ background: '#1a3548' }}>
-                <ComposeIcon size={20} />
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#1a3548] flex items-center justify-center text-xl">✈️</div>
+                <div className="text-lg font-bold text-white">Добавить Telegram чат</div>
               </div>
-              <div>
-                <div className="text-lg font-bold text-white">Добавить чат</div>
-                <div className="text-xs text-slate-500">Подключите новый источник сообщений</div>
-              </div>
-            </div>
-
-            {/* Source options */}
-            <div className="space-y-2 mb-5">
-              {/* Telegram */}
-              <button
-                onClick={() => {
-                  setShowAddChatModal(false);
-                  setShowSettingsModal(true);
-                }}
-                className="w-full flex items-center gap-3 py-3 px-4 rounded-xl text-sm text-slate-300 hover:bg-[#1a3548] border border-slate-700 hover:border-[#229ED9]/30 transition-colors"
-              >
-                <div className="w-9 h-9 rounded-lg flex items-center justify-center text-lg" style={{ background: '#1a3548' }}>
-                  ✈️
-                </div>
-                <div className="text-left flex-1">
-                  <div className="font-medium">Telegram группа или чат</div>
-                  <div className="text-[10px] text-slate-500">Добавьте бота в группу — чат появится автоматически</div>
-                </div>
-                <ChevronIcon open={false} size={16} />
-              </button>
-
-              {/* Bitrix24 */}
-              <button
-                onClick={() => syncAll()}
-                disabled={syncing}
-                className="w-full flex items-center gap-3 py-3 px-4 rounded-xl text-sm text-slate-300 hover:bg-[#1e3a5f] border border-slate-700 hover:border-[#3B8BD4]/30 transition-colors disabled:opacity-50"
-              >
-                <div className="w-9 h-9 rounded-lg flex items-center justify-center text-lg" style={{ background: '#1e3a5f' }}>
-                  🏢
-                </div>
-                <div className="text-left flex-1">
-                  <div className="font-medium">Синхронизировать Битрикс24</div>
-                  <div className="text-[10px] text-slate-500">Обновить список чатов из всех порталов</div>
-                </div>
-                <span className="text-sm">{syncing ? '⏳' : '🔄'}</span>
-              </button>
-
-              {/* Coming soon */}
-              <div className="flex items-center gap-3 py-3 px-4 rounded-xl text-sm text-slate-600 border border-slate-800 opacity-50">
-                <div className="w-9 h-9 rounded-lg flex items-center justify-center text-lg" style={{ background: '#3d2a10' }}>
-                  💬
-                </div>
-                <div className="text-left flex-1">
-                  <div className="font-medium">МАКС</div>
-                  <div className="text-[10px] text-slate-600">Скоро</div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 py-3 px-4 rounded-xl text-sm text-slate-600 border border-slate-800 opacity-50">
-                <div className="w-9 h-9 rounded-lg flex items-center justify-center text-lg" style={{ background: '#1a3d24' }}>
-                  📱
-                </div>
-                <div className="text-left flex-1">
-                  <div className="font-medium">WhatsApp</div>
-                  <div className="text-[10px] text-slate-600">Скоро</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Telegram setup instructions (always visible) */}
-            <div className="border-t border-slate-800 pt-4">
-              <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
-                Как подключить Telegram чат
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex gap-2.5">
-                  <span className="w-5 h-5 rounded-full bg-[#229ED9]/20 text-[#229ED9] flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5">1</span>
-                  <div className="text-xs text-slate-400">
-                    <span className="text-slate-200 font-medium">Настройте Webhook</span> — нажмите кнопку в настройках дашборда
-                  </div>
-                </div>
-                <div className="flex gap-2.5">
-                  <span className="w-5 h-5 rounded-full bg-[#229ED9]/20 text-[#229ED9] flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5">2</span>
-                  <div className="text-xs text-slate-400">
-                    <span className="text-slate-200 font-medium">Добавьте бота в группу</span> — Add Members → найдите по @username
-                  </div>
-                </div>
-                <div className="flex gap-2.5">
-                  <span className="w-5 h-5 rounded-full bg-[#229ED9]/20 text-[#229ED9] flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5">3</span>
-                  <div className="text-xs text-slate-400">
-                    <span className="text-slate-200 font-medium">Выключите Group Privacy</span> — @BotFather → /mybots → Bot Settings → Group Privacy → Turn off
-                  </div>
-                </div>
-                <div className="flex gap-2.5">
-                  <span className="w-5 h-5 rounded-full bg-green-600/20 text-green-400 flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5">✓</span>
-                  <div className="text-xs text-slate-400">
-                    Чат <span className="text-slate-200 font-medium">автоматически появится</span> в дашборде после первого сообщения
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end pt-4 border-t border-slate-800 mt-4">
               <button
                 onClick={() => setShowAddChatModal(false)}
-                className="px-4 py-2 rounded-lg text-sm font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 transition-colors"
+                className="w-8 h-8 rounded-lg bg-slate-800 text-slate-400 flex items-center justify-center hover:bg-slate-700 hover:text-white transition-colors text-sm"
               >
-                Закрыть
+                ✕
               </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="bg-[#1e293b] rounded-xl p-4 border border-slate-700">
+                <div className="text-sm font-medium text-white mb-2">Как подключить чат</div>
+                <ol className="text-sm text-slate-300 space-y-2 list-decimal list-inside">
+                  <li>Откройте Telegram группу или чат</li>
+                  <li>Добавьте бота <span className="text-[#229ED9] font-semibold">@our_omnichannel_bot</span> в участники</li>
+                  <li>Дайте боту права на чтение сообщений</li>
+                  <li>Чат автоматически появится в дашборде в группе «ТГ Чаты»</li>
+                </ol>
+              </div>
+
+              <div className="bg-[#1e293b] rounded-xl p-4 border border-slate-700">
+                <div className="text-sm font-medium text-white mb-2">Как подключить личные сообщения</div>
+                <ol className="text-sm text-slate-300 space-y-2 list-decimal list-inside">
+                  <li>Перешлите любое сообщение от контакта боту <span className="text-[#229ED9] font-semibold">@our_omnichannel_bot</span></li>
+                  <li>Бот начнёт получать новые сообщения из этого чата</li>
+                </ol>
+              </div>
+
+              <div className="text-[11px] text-slate-500 text-center">
+                Бот видит только новые сообщения после добавления. История недоступна.
+              </div>
             </div>
           </div>
         </div>

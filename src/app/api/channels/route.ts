@@ -14,6 +14,7 @@ interface ChannelResult {
   lastActivity: string;
   messageCount: number;
   unreadMessages: number;
+  avatarUrl: string | null;
 }
 
 export async function GET() {
@@ -43,6 +44,7 @@ export async function GET() {
               lastActivity: ch.lastActivity?.toISOString() || new Date().toISOString(),
               messageCount: ch._count.messages,
               unreadMessages,
+              avatarUrl: null, // DB mode doesn't have avatar cached yet
             };
           })
         );
@@ -60,6 +62,8 @@ export async function GET() {
 
         for (const item of dialogs.items) {
           const externalId = `bx_${portalKey}_${item.id}`;
+          // Avatar: from user (1:1 chat) or from chat data (group chat)
+          const avatarUrl = item.user?.avatar || item.chat?.avatar || null;
           channels.push({
             id: externalId, // Use externalId as temporary ID
             source: portalKey,
@@ -70,6 +74,7 @@ export async function GET() {
             lastActivity: item.message?.date || new Date().toISOString(),
             messageCount: 0,
             unreadMessages: item.counter || 0,
+            avatarUrl,
           });
         }
       } catch (e) {

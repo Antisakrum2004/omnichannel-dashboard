@@ -13,6 +13,7 @@ interface Channel {
   lastActivity: string;
   messageCount?: number;
   unreadMessages?: number;
+  avatarUrl?: string | null;
 }
 
 interface Message {
@@ -27,10 +28,21 @@ interface Message {
   isRead: boolean;
   operatorId: string | null;
   externalId: string | null;
+  files?: MessageFile[];
+}
+
+interface MessageFile {
+  id: number;
+  type: string; // 'image' | 'file' etc
+  name: string;
+  urlPreview: string;
+  urlShow: string;
+  urlDownload: string;
+  image?: { width: number; height: number };
 }
 
 // ─── Version ───
-const APP_VERSION = 'v1.6';
+const APP_VERSION = 'v1.7';
 
 // ─── Source Config ───
 const SOURCES: Record<string, { label: string; name: string; color: string; bg: string; icon: string }> = {
@@ -87,11 +99,23 @@ function ChatListItem({
       }`}
       onClick={onClick}
     >
+      {channel.avatarUrl ? (
+        <img
+          src={channel.avatarUrl}
+          alt={channel.name}
+          className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+          onError={(e) => {
+            (e.target as HTMLImageElement).style.display = 'none';
+            const sibling = (e.target as HTMLImageElement).nextElementSibling as HTMLElement;
+            if (sibling) sibling.style.display = 'flex';
+          }}
+        />
+      ) : null}
       <div
-        className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0"
-        style={{ background: src.bg, color: src.color }}
+        className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${channel.avatarUrl ? 'hidden' : ''}`}
+        style={{ background: getAvatarColor(channel.name), color: '#fff' }}
       >
-        {channel.name.charAt(0)}
+        {channel.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
@@ -192,6 +216,70 @@ function SenderAvatar({ name, avatarUrl, size = 32 }: { name: string; avatarUrl?
   );
 }
 
+// ─── Rich text: clickable links ───
+function RichText({ text }: { text: string }) {
+  // Parse Bitrix BB-code: [URL]https://...[/URL] and [URL=https://...]text[/URL]
+  // Also parse bare URLs like https://...
+  const parts: (string | { url: string; label: string })[] = [];
+  
+  // Combined regex for: [URL=href]label[/URL], [URL]url[/URL], bare https://...
+  const regex = /\[URL=([^\]]+)\]([^\[]+)\[\/URL\]|\[URL\]([^\[]+)\[\/URL\]|(\bhttps?:\/\/[^\s\[\]<>"')\]]+)/gi;
+  let lastIndex = 0;
+  let match;
+  
+  while ((match = regex.exec(text)) !== null) {
+    // Add text before this match
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+    
+    if (match[1] && match[2]) {
+      // [URL=href]label[/URL]
+      parts.push({ url: match[1], label: match[2] });
+    } else if (match[3]) {
+      // [URL]url[/URL]
+      parts.push({ url: match[3], label: match[3] });
+    } else if (match[4]) {
+      // bare URL
+      parts.push({ url: match[4], label: match[4] });
+    }
+    
+    lastIndex = match.index + match[0].length;
+  }
+  
+  // Add remaining text
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+  
+  if (parts.length === 0) {
+    return <>{text}</>;
+  }
+  
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (typeof part === 'string') {
+          // Also parse [USER=123]Name[/USER] inline mentions → just show name
+          const cleaned = part.replace(/\[USER=\d+\]([^\[]+)\[\/USER\]/gi, '$1');
+          return <span key={i}>{cleaned}</span>;
+        }
+        return (
+          <a
+            key={i}
+            href={part.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-400 hover:text-blue-300 underline decoration-blue-400/50 hover:decoration-blue-300 transition-colors"
+          >
+            {part.label}
+          </a>
+        );
+      })}
+    </>
+  );
+}
+
 function MessageBubble({ msg, showName, currentUserName }: { msg: Message; showName: boolean; currentUserName: string }) {
   // "My" message = senderType is operator OR sender name matches current user
   const isMe = msg.senderType === 'operator' || 
@@ -225,9 +313,28 @@ function MessageBubble({ msg, showName, currentUserName }: { msg: Message; showN
             {msg.senderName}
           </div>
         )}
-        <div className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: s.text }}>
-          {msg.text}
-        </div>
+        {/* Message text with clickable links */}
+        {msg.text && (
+          <div className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: s.text }}>
+            <RichText text={msg.text} />
+          </div>
+        )}
+        {/* Inline images */}
+        {msg.files && msg.files.length > 0 && (
+          <div className="flex flex-col gap-1.5 mt-1.5">
+            {msg.files.map((file) => (
+              <a key={file.id} href={file.urlDownload} target="_blank" rel="noopener noreferrer">
+                <img
+                  src={file.urlPreview}
+                  alt={file.name}
+                  className="max-w-full rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                  style={{ maxHeight: 240 }}
+                  loading="lazy"
+                />
+              </a>
+            ))}
+          </div>
+        )}
         <div
           className="text-[10px] mt-0.5 text-right"
           style={{ color: s.time }}

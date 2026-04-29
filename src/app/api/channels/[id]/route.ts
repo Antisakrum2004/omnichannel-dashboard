@@ -58,6 +58,14 @@ export async function GET(
       try {
         const result = await getBitrixMessages(portalKey, dialogId, 30);
         if (result?.messages) {
+          // Build file lookup from result.files array
+          const filesLookup: Record<number, any> = {};
+          if (Array.isArray(result.files)) {
+            for (const f of result.files) {
+              filesLookup[f.id] = f;
+            }
+          }
+
           const messages = result.messages.map((msg: any) => {
             const author = result.users?.find((u: any) => u.id === msg.author_id);
             // Determine sender type: webhook user = operator, system (id=0) = system, everyone else = client
@@ -66,18 +74,38 @@ export async function GET(
               : (webhookUserId && msg.author_id === webhookUserId)
                 ? 'operator'
                 : 'client';
+            
+            // Resolve attached files from params.FILE_ID
+            const fileIds: number[] = msg.params?.FILE_ID || [];
+            const msgFiles = fileIds
+              .map((fid: number) => {
+                const f = filesLookup[fid];
+                if (!f) return null;
+                return {
+                  id: f.id,
+                  type: f.type || 'file',
+                  name: f.name || `file_${fid}`,
+                  urlPreview: f.urlPreview || f.urlShow || '',
+                  urlShow: f.urlShow || '',
+                  urlDownload: f.urlDownload || '',
+                  image: f.image || undefined,
+                };
+              })
+              .filter(Boolean);
+
             return {
               id: `bx_${msg.id}`,
               channelId: id,
               senderName: author?.name || `User ${msg.author_id}`,
               senderType,
               senderId: msg.author_id,
-              senderAvatar: author?.avatar || null, // Bitrix24 avatar URL
+              senderAvatar: author?.avatar || null,
               text: msg.text || '',
               timestamp: new Date(msg.date).toISOString(),
               isRead: !msg.unread,
               operatorId: null,
               externalId: `bx_${msg.id}`,
+              files: msgFiles.length > 0 ? msgFiles : undefined,
             };
           });
 

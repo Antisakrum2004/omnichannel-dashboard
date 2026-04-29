@@ -94,7 +94,7 @@ Work Log:
 - Fetches up to 500 recent Telegram updates, processes them into telegram-store
 - Re-registers webhook after fetching
 - Added "Загрузить историю" button in settings modal
-- GitHub push now works with classic PAT ([REDACTED])
+- GitHub push now works with classic PAT (configured)
 - Deployed to Vercel: https://my-project-eta-lemon.vercel.app
 
 Stage Summary:

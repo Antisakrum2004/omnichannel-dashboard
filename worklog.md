@@ -51,3 +51,30 @@ Stage Summary:
 - In-memory store works but data is lost on serverless cold starts
 - GitHub PAT is invalid - needs user to provide a new one
 - User added bot to chat "Разработка КЗ (Анна)" - messages will appear in "ТГ Чаты" group
+
+---
+Task ID: 1
+Agent: Main
+Task: V2.0 Omnichannel Dashboard update — red unread dot, mark-as-read, notification sound, GitHub push
+
+Work Log:
+- Read all codebase files (page.tsx, API routes, telegram-store, bitrix.ts, telegram.ts)
+- Updated version from v1.9 to v2.0
+- Changed version display: text-sm font-bold text-white/90 (was text-xs font-semibold text-white/60)
+- Added red dot indicator on avatars for unread channels (small red circle overlay)
+- Added unread bold styling for channel names when hasUnread
+- Added markChannelRead function — optimistically clears unread in local state + calls server API
+- Added handleChannelClick that both selects channel and marks as read
+- Created /api/channels/[id]/read API route — resets Telegram unread + calls Bitrix24 im.dialog.read
+- Added markBitrixDialogRead function to bitrix.ts
+- Added notification sound when new unread messages appear (AudioContext beep)
+- Added getTelegramChatMembersCount and getTelegramMe helpers to telegram.ts
+- Successfully built and deployed to Vercel (https://my-project-eta-lemon.vercel.app)
+- GitHub push FAILED — fine-grained PAT lacks Contents:Write permission
+
+Stage Summary:
+- V2.0 deployed to Vercel successfully
+- Red unread dot appears on channels with new messages, disappears when you open the chat
+- Notification sound plays when new messages arrive
+- Auto-polling already in place (5s channels, 3s messages) — Bitrix24 messages appear in real-time
+- GitHub push requires PAT with Contents:Read and write permission

@@ -42,6 +42,16 @@ export async function getTelegramChat(chatId: string | number) {
   return telegramApi('getChat', { chat_id: chatId });
 }
 
+// Get chat member count
+export async function getTelegramChatMembersCount(chatId: string | number) {
+  return telegramApi('getChatMemberCount', { chat_id: chatId });
+}
+
+// Get my bot info
+export async function getTelegramMe() {
+  return telegramApi('getMe');
+}
+
 // Set webhook
 export async function setTelegramWebhook(url: string, secretToken: string) {
   return telegramApi('setWebhook', {

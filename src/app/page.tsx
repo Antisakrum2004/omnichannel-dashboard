@@ -42,7 +42,7 @@ interface MessageFile {
 }
 
 // ─── Version ───
-const APP_VERSION = 'v1.9';
+const APP_VERSION = 'v2.0';
 
 // ─── Source Config ───
 const SOURCES: Record<string, { label: string; name: string; color: string; bg: string; icon: string }> = {
@@ -143,6 +143,7 @@ function ChatListItem({
   onClick: () => void;
 }) {
   const timeStr = formatTime(channel.lastActivity);
+  const hasUnread = channel.unreadCount > 0;
 
   return (
     <div
@@ -151,31 +152,36 @@ function ChatListItem({
       }`}
       onClick={onClick}
     >
-      {/* Avatar */}
-      {channel.avatarUrl ? (
-        <img
-          src={channel.avatarUrl}
-          alt={channel.name}
-          className="w-10 h-10 rounded-full object-cover flex-shrink-0"
-          onError={(e) => {
-            (e.target as HTMLImageElement).style.display = 'none';
-            const sibling = (e.target as HTMLImageElement).nextElementSibling as HTMLElement;
-            if (sibling) sibling.style.display = 'flex';
-          }}
-        />
-      ) : null}
-      <div
-        className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${channel.avatarUrl ? 'hidden' : ''}`}
-        style={{ background: getAvatarColor(channel.name), color: '#fff' }}
-      >
-        {channel.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
+      {/* Avatar with unread dot */}
+      <div className="relative flex-shrink-0">
+        {channel.avatarUrl ? (
+          <img
+            src={channel.avatarUrl}
+            alt={channel.name}
+            className="w-10 h-10 rounded-full object-cover"
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = 'none';
+              const sibling = (e.target as HTMLImageElement).nextElementSibling as HTMLElement;
+              if (sibling) sibling.style.display = 'flex';
+            }}
+          />
+        ) : null}
+        <div
+          className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ${channel.avatarUrl ? 'hidden' : ''}`}
+          style={{ background: getAvatarColor(channel.name), color: '#fff' }}
+        >
+          {channel.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
+        </div>
+        {hasUnread && (
+          <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-red-500 rounded-full border-2 border-[#0d1117]" />
+        )}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
           <SourceBadge source={channel.source} />
-          <span className="text-sm font-medium truncate">{channel.name}</span>
+          <span className={`text-sm truncate ${hasUnread ? 'font-bold text-white' : 'font-medium'}`}>{channel.name}</span>
         </div>
-        <div className="text-xs text-slate-400 truncate mt-0.5">
+        <div className={`text-xs truncate mt-0.5 ${hasUnread ? 'text-slate-200 font-medium' : 'text-slate-400'}`}>
           {channel.lastMessage || 'Нет сообщений'}
         </div>
       </div>
@@ -476,6 +482,26 @@ export default function OmnichannelApp() {
     setCollapsedGroups(prev => ({ ...prev, [source]: !prev[source] }));
   };
 
+  // Mark channel as read (optimistic + server)
+  const markChannelRead = useCallback(async (channelId: string) => {
+    // Optimistic: immediately clear unread in local state
+    setChannels(prev => prev.map(ch =>
+      ch.id === channelId ? { ...ch, unreadCount: 0 } : ch
+    ));
+    // Server: notify backend to mark as read
+    try {
+      await fetch(`/api/channels/${channelId}/read`, { method: 'POST' });
+    } catch (e) {
+      // Silently fail — the next poll will sync the correct state
+    }
+  }, []);
+
+  // Handle channel click — select + mark as read
+  const handleChannelClick = useCallback((channelId: string) => {
+    setActiveChannelId(channelId);
+    markChannelRead(channelId);
+  }, [markChannelRead]);
+
   // Fetch channels
   const fetchChannels = useCallback(async () => {
     try {
@@ -535,11 +561,37 @@ export default function OmnichannelApp() {
   }, [fetchChannels]);
 
   // Auto-polling: refresh channels every 5 seconds, messages every 3 seconds
+  // Track unread changes for notification sound
+  const prevTotalUnreadRef = useRef(0);
+
   useEffect(() => {
     fetchChannels();
     const interval = setInterval(fetchChannels, 5000);
     return () => clearInterval(interval);
   }, [fetchChannels]);
+
+  // Play notification sound when new unread messages appear
+  useEffect(() => {
+    const totalUnread = channels.reduce((s, c) => s + c.unreadCount, 0);
+    if (totalUnread > prevTotalUnreadRef.current && prevTotalUnreadRef.current >= 0) {
+      // New messages arrived — play subtle notification
+      try {
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = 800;
+        gain.gain.value = 0.08;
+        osc.start();
+        osc.stop(ctx.currentTime + 0.1);
+        setTimeout(() => ctx.close(), 200);
+      } catch (e) {
+        // Audio not available — ignore
+      }
+    }
+    prevTotalUnreadRef.current = totalUnread;
+  }, [channels]);
 
   useEffect(() => {
     if (!activeChannelId) { setMessages([]); return; }
@@ -629,7 +681,7 @@ export default function OmnichannelApp() {
         <div className="px-4 pt-4 pb-1">
           <div className="flex items-center justify-between">
             <h2 className="text-base font-bold text-white">
-              Все чаты <span className="text-xs font-semibold text-white/60 ml-2">{APP_VERSION}</span>
+              Все чаты <span className="text-sm font-bold text-white/90 ml-2">{APP_VERSION}</span>
             </h2>
           </div>
         </div>
@@ -673,7 +725,7 @@ export default function OmnichannelApp() {
           <div className="flex items-center gap-2 px-4 pb-2">
             <SenderAvatar name={currentUserName} size={20} />
             <span className="text-[11px] text-slate-300 font-medium">{currentUserName}</span>
-            <span className="text-[10px] text-slate-600">· {APP_VERSION}</span>
+            <span className="text-[10px] text-slate-500">· {APP_VERSION}</span>
           </div>
         )}
 
@@ -715,7 +767,7 @@ export default function OmnichannelApp() {
                           key={ch.id}
                           channel={ch}
                           isActive={ch.id === activeChannelId}
-                          onClick={() => setActiveChannelId(ch.id)}
+                          onClick={() => handleChannelClick(ch.id)}
                         />
                       ))
                     )

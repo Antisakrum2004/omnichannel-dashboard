@@ -79,6 +79,13 @@ export async function getBitrixDialoInfo(portalKey: string, dialogId: string) {
   });
 }
 
+// Mark dialog as read
+export async function markBitrixDialogRead(portalKey: string, dialogId: string) {
+  return bitrixApi(portalKey, 'im.dialog.read', {
+    DIALOG_ID: dialogId,
+  });
+}
+
 // Get open lines session history
 export async function getBitrixOpenLineHistory(portalKey: string, chatId: string | number) {
   return bitrixApi(portalKey, 'imopenlines.session.history.get', {

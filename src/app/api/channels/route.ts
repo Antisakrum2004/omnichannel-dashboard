@@ -1,8 +1,9 @@
-// Get all channels - tries DB first, falls back to Bitrix API
+// Get all channels - tries DB first, falls back to Bitrix API + Telegram in-memory store
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getBitrixDialogs } from '@/lib/bitrix';
 import { BITRIX_PORTALS } from '@/lib/sources';
+import { getAllChannels as getTgChannels } from '@/lib/telegram-store';
 
 interface ChannelResult {
   id: string;
@@ -19,42 +20,9 @@ interface ChannelResult {
 
 export async function GET() {
   try {
-    // Try DB first
-    let channels: ChannelResult[] = [];
-    
-    try {
-      const dbChannels = await db.channel.findMany({
-        orderBy: { lastActivity: 'desc' },
-        include: { _count: { select: { messages: true } } },
-      });
+    const channels: ChannelResult[] = [];
 
-      if (dbChannels.length > 0) {
-        channels = await Promise.all(
-          dbChannels.map(async (ch) => {
-            const unreadMessages = await db.message.count({
-              where: { channelId: ch.id, isRead: false, senderType: 'client' },
-            });
-            return {
-              id: ch.id,
-              source: ch.source,
-              externalId: ch.externalId,
-              name: ch.name,
-              unreadCount: ch.unreadCount,
-              lastMessage: ch.lastMessage,
-              lastActivity: ch.lastActivity?.toISOString() || new Date().toISOString(),
-              messageCount: ch._count.messages,
-              unreadMessages,
-              avatarUrl: null, // DB mode doesn't have avatar cached yet
-            };
-          })
-        );
-        return NextResponse.json(channels);
-      }
-    } catch (dbError) {
-      console.warn('[Channels API] DB not available, fetching from Bitrix directly');
-    }
-
-    // Fallback: fetch directly from Bitrix24 APIs
+    // ─── 1. Bitrix24 channels (from API directly) ───
     for (const [portalKey, portal] of Object.entries(BITRIX_PORTALS)) {
       try {
         const dialogs = await getBitrixDialogs(portalKey, 50);
@@ -62,10 +30,9 @@ export async function GET() {
 
         for (const item of dialogs.items) {
           const externalId = `bx_${portalKey}_${item.id}`;
-          // Avatar: from user (1:1 chat) or from chat data (group chat)
           const avatarUrl = item.user?.avatar || item.chat?.avatar || null;
           channels.push({
-            id: externalId, // Use externalId as temporary ID
+            id: externalId,
             source: portalKey,
             externalId,
             name: item.title || item.name || `Чат ${item.id}`,
@@ -80,6 +47,23 @@ export async function GET() {
       } catch (e) {
         console.error(`[Channels API] Failed to fetch from ${portalKey}:`, e);
       }
+    }
+
+    // ─── 2. Telegram channels (from in-memory store) ───
+    const tgChannels = getTgChannels();
+    for (const ch of tgChannels) {
+      channels.push({
+        id: ch.id,
+        source: 'telegram',
+        externalId: ch.externalId,
+        name: ch.name,
+        unreadCount: ch.unreadCount,
+        lastMessage: ch.lastMessage,
+        lastActivity: ch.lastActivity,
+        messageCount: 0,
+        unreadMessages: ch.unreadCount,
+        avatarUrl: null,
+      });
     }
 
     // Sort by last activity

@@ -1,83 +1,73 @@
 // Webhook endpoint for Telegram Bot API
 // URL: /api/webhook/telegram
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { normalizeTelegramMessage } from '@/lib/gateway';
-import { getTelegramChat } from '@/lib/telegram';
+import { upsertChannel, addMessage } from '@/lib/telegram-store';
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
 
-  // Verify secret token header
-  const secret = request.headers.get('x-telegram-bot-api-secret-token') || '';
-  const expectedSecret = process.env.TELEGRAM_WEBHOOK_SECRET || 'omni_tg_secret_2024';
-  if (secret !== expectedSecret) {
-    console.warn('[Telegram Webhook] Invalid secret token');
-    // Don't reject during development
-  }
-
   console.log('[Telegram Webhook] Update:', body.update_id);
 
   try {
-    const normalized = normalizeTelegramMessage(body);
-    if (!normalized || !normalized.text) {
-      return NextResponse.json({ ok: true, message: 'No text message' });
+    const message = body.message || body.edited_message;
+    if (!message) {
+      return NextResponse.json({ ok: true, message: 'No message in update' });
     }
 
-    // Find or create channel
-    let channel = await db.channel.findUnique({
-      where: { source_externalId: { source: 'telegram', externalId: normalized.channelExternalId } },
-    });
+    const chatId = String(message.chat.id);
+    const chatType = message.chat.type || 'private';
+    const isGroup = chatType === 'group' || chatType === 'supergroup';
+    const channelName = isGroup
+      ? message.chat.title || 'Telegram Group'
+      : `${message.chat.first_name || ''} ${message.chat.last_name || ''}`.trim() || 'Telegram User';
 
-    if (!channel) {
-      // Try to get chat name from Telegram API
-      let channelName = normalized.channelName || 'Telegram Chat';
-      try {
-        const chatId = normalized.channelExternalId.replace('tg_', '');
-        const chatInfo = await getTelegramChat(chatId);
-        if (chatInfo?.title) channelName = chatInfo.title;
-        else if (chatInfo?.first_name) channelName = `${chatInfo.first_name} ${chatInfo.last_name || ''}`.trim();
-      } catch (e) { /* ignore */ }
+    const isFromBot = message.from?.is_bot === true;
+    const senderName = message.from
+      ? `${message.from.first_name || ''} ${message.from.last_name || ''}`.trim() || 'Unknown'
+      : 'Unknown';
+    const text = message.text || '';
 
-      channel = await db.channel.create({
-        data: {
-          source: 'telegram',
-          externalId: normalized.channelExternalId,
-          name: channelName,
-          unreadCount: normalized.senderType === 'client' ? 1 : 0,
-          lastMessage: normalized.text.substring(0, 100),
-          lastActivity: normalized.timestamp,
-        },
-      });
-    } else {
-      await db.channel.update({
-        where: { id: channel.id },
-        data: {
-          unreadCount: normalized.senderType === 'client' ? { increment: 1 } : undefined,
-          lastMessage: normalized.text.substring(0, 100),
-          lastActivity: normalized.timestamp,
-        },
-      });
+    // Skip empty messages (stickers, photos without caption, etc.)
+    if (!text && !message.caption) {
+      return NextResponse.json({ ok: true, message: 'No text/caption in message' });
     }
 
-    await db.message.create({
-      data: {
-        channelId: channel.id,
-        senderName: normalized.senderName,
-        senderType: normalized.senderType,
-        text: normalized.text,
-        timestamp: normalized.timestamp,
-        externalId: normalized.externalMessageId,
-      },
+    const messageText = text || message.caption || '';
+
+    // Upsert channel in store
+    const channel = upsertChannel({
+      chatId,
+      chatType,
+      name: channelName,
+      lastMessage: messageText,
+      isFromClient: !isFromBot,
     });
+
+    // Add message to store
+    addMessage({
+      channelId: channel.id,
+      senderName,
+      senderType: isFromBot ? 'operator' : 'client',
+      text: messageText,
+      externalId: `tg_${message.message_id}`,
+      senderId: message.from?.id,
+    });
+
+    console.log(`[Telegram Webhook] Saved message from ${senderName} in ${channelName}: ${messageText.substring(0, 50)}`);
 
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error('[Telegram Webhook] Error:', error);
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true }); // Always return 200 to Telegram
   }
 }
 
 export async function GET() {
-  return NextResponse.json({ status: 'telegram-webhook-active' });
+  // Health check
+  const { getStoreStats } = await import('@/lib/telegram-store');
+  const stats = getStoreStats();
+  return NextResponse.json({
+    status: 'telegram-webhook-active',
+    store: stats,
+  });
 }

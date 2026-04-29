@@ -9,3 +9,4 @@ db/*.db-journal
 .zscripts/
 dist/
 .vercel
+download/notion_page.json

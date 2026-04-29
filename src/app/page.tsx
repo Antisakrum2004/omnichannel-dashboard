@@ -21,12 +21,16 @@ interface Message {
   senderName: string;
   senderType: string;
   senderId?: number;
+  senderAvatar?: string | null;
   text: string;
   timestamp: string;
   isRead: boolean;
   operatorId: string | null;
   externalId: string | null;
 }
+
+// ─── Version ───
+const APP_VERSION = 'v1.5';
 
 // ─── Source Config ───
 const SOURCES: Record<string, { label: string; name: string; color: string; bg: string; icon: string }> = {
@@ -84,7 +88,7 @@ function ChatListItem({
       onClick={onClick}
     >
       <div
-        className="w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0"
+        className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0"
         style={{ background: src.bg, color: src.color }}
       >
         {channel.name.charAt(0)}
@@ -123,6 +127,71 @@ const MSG_STYLE = {
   },
 };
 
+// ─── Avatar color from name hash ───
+// Generates a stable, muted, pleasant color for each sender
+const AVATAR_COLORS = [
+  '#c0392b', '#e67e22', '#f39c12', '#27ae60', '#2980b9',
+  '#8e44ad', '#d35400', '#16a085', '#2c3e50', '#c0392b',
+  '#e74c3c', '#3498db', '#1abc9c', '#9b59b6', '#34495e',
+];
+
+function getAvatarColor(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) {
+    // Name + Patronymic: take first letter of each
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+  // Single word: take first 2 letters
+  return name.slice(0, 2).toUpperCase();
+}
+
+function SenderAvatar({ name, avatarUrl, size = 32 }: { name: string; avatarUrl?: string | null; size?: number }) {
+  const color = getAvatarColor(name);
+  const initials = getInitials(name);
+
+  if (avatarUrl) {
+    return (
+      <img
+        src={avatarUrl}
+        alt={name}
+        className="rounded-full object-cover flex-shrink-0"
+        style={{ width: size, height: size }}
+        onError={(e) => {
+          // On load error, hide img and show initials instead
+          (e.target as HTMLImageElement).style.display = 'none';
+          const parent = (e.target as HTMLImageElement).parentElement;
+          if (parent) {
+            const fallback = parent.querySelector('.avatar-fallback') as HTMLElement;
+            if (fallback) fallback.style.display = 'flex';
+          }
+        }}
+      />
+    );
+  }
+
+  return (
+    <div
+      className="rounded-full flex items-center justify-center text-white font-bold flex-shrink-0"
+      style={{
+        width: size,
+        height: size,
+        background: color,
+        fontSize: size * 0.35,
+      }}
+    >
+      {initials}
+    </div>
+  );
+}
+
 function MessageBubble({ msg, showName, currentUserName }: { msg: Message; showName: boolean; currentUserName: string }) {
   // "My" message = senderType is operator OR sender name matches current user
   const isMe = msg.senderType === 'operator' || 
@@ -135,9 +204,19 @@ function MessageBubble({ msg, showName, currentUserName }: { msg: Message; showN
   const s = isMe ? MSG_STYLE.outgoing : MSG_STYLE.incoming;
 
   return (
-    <div className={`flex ${isMe ? 'justify-end' : 'justify-start'} mb-2`}>
+    <div className={`flex gap-2 ${isMe ? 'justify-end' : 'justify-start'} mb-2`}>
+      {/* Avatar on the LEFT for others */}
+      {!isMe && (
+        <div className="flex-shrink-0 pt-0.5">
+          {showName ? (
+            <SenderAvatar name={msg.senderName} avatarUrl={msg.senderAvatar} size={32} />
+          ) : (
+            <div style={{ width: 32 }} />
+          )}
+        </div>
+      )}
       <div
-        className={`max-w-[75%] px-3.5 py-2 ${
+        className={`max-w-[70%] px-3.5 py-2 ${
           isMe
             ? 'rounded-[16px_4px_16px_16px]'
             : 'rounded-[4px_16px_16px_16px]'
@@ -162,6 +241,16 @@ function MessageBubble({ msg, showName, currentUserName }: { msg: Message; showN
           {time}
         </div>
       </div>
+      {/* Avatar on the RIGHT for me */}
+      {isMe && (
+        <div className="flex-shrink-0 pt-0.5">
+          {showName ? (
+            <SenderAvatar name={msg.senderName} avatarUrl={msg.senderAvatar} size={32} />
+          ) : (
+            <div style={{ width: 32 }} />
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -426,6 +515,7 @@ export default function OmnichannelApp() {
         <div className="px-3 py-3 border-t border-slate-800 text-center">
           <div className="text-[11px] text-slate-600">
             {channels.length} чатов · {totalUnread} непрочитанных
+            <span className="ml-2 text-slate-700">{APP_VERSION}</span>
           </div>
         </div>
       </div>
@@ -542,11 +632,8 @@ export default function OmnichannelApp() {
           <>
             <div className="px-5 py-6 text-center border-b border-slate-800">
               <div
-                className="w-16 h-16 rounded-full mx-auto flex items-center justify-center text-xl font-bold mb-3"
-                style={{
-                  background: SOURCES[activeChannel.source]?.bg || '#1e293b',
-                  color: SOURCES[activeChannel.source]?.color || '#ccc',
-                }}
+                className="w-16 h-16 rounded-full mx-auto flex items-center justify-center text-xl font-bold mb-3 text-white"
+                style={{ background: getAvatarColor(activeChannel.name) }}
               >
                 {activeChannel.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
               </div>

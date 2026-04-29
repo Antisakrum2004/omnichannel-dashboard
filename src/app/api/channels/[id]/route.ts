@@ -71,7 +71,8 @@ export async function GET(
               channelId: id,
               senderName: author?.name || `User ${msg.author_id}`,
               senderType,
-              senderId: msg.author_id, // Include raw author_id for frontend name-based matching
+              senderId: msg.author_id,
+              senderAvatar: author?.avatar || null, // Bitrix24 avatar URL
               text: msg.text || '',
               timestamp: new Date(msg.date).toISOString(),
               isRead: !msg.unread,

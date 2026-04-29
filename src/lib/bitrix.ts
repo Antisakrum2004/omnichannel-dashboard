@@ -99,3 +99,22 @@ export function verifyBitrixWebhookToken(portalKey: string, token: string): bool
   if (!portal) return false;
   return portal.outgoingToken === token;
 }
+
+// Get task comments (tasks have their own chat channels)
+export async function getBitrixTaskComments(portalKey: string, taskId: string | number) {
+  return bitrixApi(portalKey, 'task.commentitem.getlist', {
+    TASKID: taskId,
+    PARAMS: { NAV_PARAMS: { nPageSize: 20, iNumPage: 1 } },
+  });
+}
+
+// Get list of tasks 
+export async function getBitrixTasks(portalKey: string, limit = 50) {
+  return bitrixApi(portalKey, 'tasks.task.list', {
+    filter: { STATUS: ['-4', '-3', '-2', '-1', '1', '2', '3', '4', '5', '6', '7'] },
+    select: ['ID', 'TITLE', 'RESPONSIBLE_NAME', 'DATE_ACTIVITY', 'STATUS'],
+    order: { DATE_ACTIVITY: 'DESC' },
+    start: 0,
+    PARAMS: { NAV_PARAMS: { nPageSize: limit } },
+  });
+}

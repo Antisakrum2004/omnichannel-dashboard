@@ -61,6 +61,21 @@ export async function setTelegramWebhook(url: string, secretToken: string) {
   });
 }
 
+// Delete webhook (needed for getUpdates to work)
+export async function deleteTelegramWebhook() {
+  return telegramApi('deleteWebhook');
+}
+
+// Get pending updates (for historical message fetching)
+export async function getTelegramUpdates(offset = 0, limit = 100) {
+  return telegramApi('getUpdates', {
+    offset,
+    limit,
+    allowed_updates: ['message', 'edited_message'],
+    timeout: 0,
+  });
+}
+
 // Verify Telegram webhook secret
 export function verifyTelegramWebhook(secret: string): boolean {
   return secret === (process.env.TELEGRAM_WEBHOOK_SECRET || 'omni_tg_secret_2024');

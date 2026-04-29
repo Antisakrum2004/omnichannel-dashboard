@@ -1,7 +1,7 @@
 // Get all channels - tries DB first, falls back to Bitrix API + Telegram in-memory store
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { getBitrixDialogs } from '@/lib/bitrix';
+import { getBitrixDialogs, getBitrixTasks } from '@/lib/bitrix';
 import { BITRIX_PORTALS } from '@/lib/sources';
 import { getAllChannels as getTgChannels } from '@/lib/telegram-store';
 
@@ -46,6 +46,52 @@ export async function GET() {
         }
       } catch (e) {
         console.error(`[Channels API] Failed to fetch from ${portalKey}:`, e);
+      }
+
+      // ─── 1b. Bitrix24 task chats ───
+      try {
+        const tasks = await getBitrixTasks(portalKey, 50);
+        if (tasks?.tasks && Array.isArray(tasks.tasks)) {
+          for (const task of tasks.tasks) {
+            const taskId = task.id || task.ID;
+            const taskTitle = task.title || task.TITLE || `Задача #${taskId}`;
+            const taskActivity = task.dateActivity || task.DATE_ACTIVITY || new Date().toISOString();
+            const externalId = `bx_${portalKey}_task_${taskId}`;
+            channels.push({
+              id: externalId,
+              source: portalKey,
+              externalId,
+              name: taskTitle,
+              unreadCount: 0,
+              lastMessage: task.description || task.DESCRIPTION || null,
+              lastActivity: taskActivity,
+              messageCount: 0,
+              unreadMessages: 0,
+              avatarUrl: null,
+            });
+          }
+        } else if (tasks?.result && Array.isArray(tasks.result)) {
+          for (const task of tasks.result) {
+            const taskId = task.id || task.ID;
+            const taskTitle = task.title || task.TITLE || `Задача #${taskId}`;
+            const taskActivity = task.dateActivity || task.DATE_ACTIVITY || new Date().toISOString();
+            const externalId = `bx_${portalKey}_task_${taskId}`;
+            channels.push({
+              id: externalId,
+              source: portalKey,
+              externalId,
+              name: taskTitle,
+              unreadCount: 0,
+              lastMessage: task.description || task.DESCRIPTION || null,
+              lastActivity: taskActivity,
+              messageCount: 0,
+              unreadMessages: 0,
+              avatarUrl: null,
+            });
+          }
+        }
+      } catch (e) {
+        console.error(`[Channels API] Failed to fetch tasks from ${portalKey}:`, e);
       }
     }
 

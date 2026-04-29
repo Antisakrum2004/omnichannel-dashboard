@@ -42,7 +42,7 @@ interface MessageFile {
 }
 
 // ─── Version ───
-const APP_VERSION = 'v2.0';
+const APP_VERSION = 'v3.0';
 
 // ─── Source Config ───
 const SOURCES: Record<string, { label: string; name: string; color: string; bg: string; icon: string }> = {
@@ -368,8 +368,13 @@ function MessageBubble({ msg, showName, currentUserName }: { msg: Message; showN
             ))}
           </div>
         )}
-        <div className="text-[10px] mt-0.5 text-right" style={{ color: s.time }}>
-          {time}
+        <div className="text-[10px] mt-0.5 text-right flex items-center justify-end gap-1" style={{ color: s.time }}>
+          <span>{time}</span>
+          {isMe && (
+            <span style={{ color: msg.isRead ? '#4fc3f7' : s.time, fontSize: '11px' }}>
+              {msg.isRead ? '✓✓' : '✓'}
+            </span>
+          )}
         </div>
       </div>
     </div>
@@ -431,6 +436,16 @@ export default function OmnichannelApp() {
   const [sending, setSending] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const autoResizeTextarea = useCallback(() => {
+    requestAnimationFrame(() => {
+      if (textareaRef.current) {
+        textareaRef.current.style.height = 'auto';
+        textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`;
+      }
+    });
+  }, []);
   
   const [currentUserName, setCurrentUserName] = useState<string>('');
   const [userNameInput, setUserNameInput] = useState<string>('');
@@ -444,6 +459,30 @@ export default function OmnichannelApp() {
     }
     return {};
   });
+
+  // Custom source names — persist in localStorage
+  const [customSourceNames, setCustomSourceNames] = useState<Record<string, string>>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('omnichannel_source_names');
+      return saved ? JSON.parse(saved) : {};
+    }
+    return {};
+  });
+  const [editingSource, setEditingSource] = useState<string | null>(null);
+  const [editingSourceName, setEditingSourceName] = useState('');
+
+  // Persist custom source names
+  useEffect(() => {
+    localStorage.setItem('omnichannel_source_names', JSON.stringify(customSourceNames));
+  }, [customSourceNames]);
+
+  const renameSource = (sourceKey: string, newName: string) => {
+    setCustomSourceNames(prev => {
+      const next = { ...prev, [sourceKey]: newName };
+      localStorage.setItem('omnichannel_source_names', JSON.stringify(next));
+      return next;
+    });
+  };
 
   // Modals
   const [showAddChatModal, setShowAddChatModal] = useState(false);
@@ -749,11 +788,10 @@ export default function OmnichannelApp() {
       >
         {/* ─── Header: Title + Version ─── */}
         <div className="px-4 pt-4 pb-1">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold text-white">
-              Все чаты <span className="text-sm font-bold text-white/90 ml-2">{APP_VERSION}</span>
-            </h2>
-          </div>
+          <h2 className="text-base font-bold text-white">
+            OmniChannel <span className="text-sm font-bold text-white/90 ml-1">{APP_VERSION}</span>
+          </h2>
+          <div className="text-xs text-slate-500 mt-0.5">Все чаты</div>
         </div>
 
         {/* ─── Toolbar: Filter | Search | Compose ─── */}
@@ -795,7 +833,7 @@ export default function OmnichannelApp() {
           <div className="flex items-center gap-2 px-4 pb-2">
             <SenderAvatar name={currentUserName} size={20} />
             <span className="text-[11px] text-slate-300 font-medium">{currentUserName}</span>
-            <span className="text-[10px] text-slate-500">· {APP_VERSION}</span>
+
           </div>
         )}
 
@@ -822,7 +860,35 @@ export default function OmnichannelApp() {
                       className="w-2 h-2 rounded-full flex-shrink-0"
                       style={{ background: src?.color || '#666' }}
                     />
-                    <span className="truncate text-left">{src?.name || source}</span>
+                    <span
+                      className="truncate text-left"
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        setEditingSource(source);
+                        setEditingSourceName(customSourceNames[source] || src?.name || source);
+                      }}
+                    >{customSourceNames[source] || src?.name || source}</span>
+                    {editingSource === source ? (
+                      <input
+                        className="w-24 bg-slate-800 border border-slate-600 rounded px-1.5 py-0.5 text-xs text-slate-200 outline-none focus:border-blue-500"
+                        value={editingSourceName}
+                        onChange={(e) => setEditingSourceName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            renameSource(source, editingSourceName);
+                            setEditingSource(null);
+                          } else if (e.key === 'Escape') {
+                            setEditingSource(null);
+                          }
+                        }}
+                        onBlur={() => {
+                          renameSource(source, editingSourceName);
+                          setEditingSource(null);
+                        }}
+                        autoFocus
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    ) : null}
                     <span className="text-slate-600 ml-auto">{items.length}</span>
                     {groupUnread > 0 && <UnreadBadge count={groupUnread} />}
                   </button>
@@ -938,20 +1004,26 @@ export default function OmnichannelApp() {
 
             {/* Input */}
             <div className="px-5 py-3 border-t border-slate-800" style={{ background: '#0d1117' }}>
-              <div className="flex items-center gap-2 bg-[#1e293b] border border-slate-700 rounded-xl px-4 py-2 focus-within:border-blue-500 transition-colors">
-                <input
-                  className="flex-1 bg-transparent outline-none text-sm text-slate-200 placeholder-slate-500"
+              <div className="flex items-end gap-2 bg-[#1e293b] border border-slate-700 rounded-xl px-4 py-2 focus-within:border-blue-500 transition-colors">
+                <textarea
+                  ref={textareaRef}
+                  className="flex-1 bg-transparent outline-none text-sm text-slate-200 placeholder-slate-500 resize-none min-h-[24px] max-h-[120px]"
                   placeholder="Написать сообщение..."
+                  rows={1}
                   value={inputText}
-                  onChange={(e) => setInputText(e.target.value)}
+                  onChange={(e) => {
+                    setInputText(e.target.value);
+                    autoResizeTextarea();
+                  }}
+                  onInput={autoResizeTextarea}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
+                    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); autoResizeTextarea(); }
                   }}
                   disabled={sending}
                 />
                 <button
-                  className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-lg px-4 py-1.5 text-sm font-medium transition-colors"
-                  onClick={handleSend}
+                  className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-lg px-4 py-1.5 text-sm font-medium transition-colors flex-shrink-0"
+                  onClick={() => { handleSend(); autoResizeTextarea(); }}
                   disabled={sending || !inputText.trim()}
                 >
                   {sending ? '...' : 'Отправить'}
@@ -1185,7 +1257,7 @@ export default function OmnichannelApp() {
                   <span className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold" style={{ background: '#1a3d2e', color: '#1D9E75' }}>2</span>
                   <div className="flex-1">
                     <div className="text-sm font-medium text-white">Дакар</div>
-                    <div className="text-[10px] text-slate-500">dakar.bitrix24.ru · Только чтение (стелс)</div>
+                    <div className="text-[10px] text-slate-500">dakar.bitrix24.ru · Чтение и запись</div>
                   </div>
                   <span className="w-2 h-2 rounded-full bg-green-500" title="Активен" />
                 </div>

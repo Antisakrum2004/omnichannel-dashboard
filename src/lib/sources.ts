@@ -27,6 +27,7 @@ export const BITRIX_PORTALS = {
     outgoingToken: 'e3ecp1omrqwo75qqe2nng9e3m9y1xiym',
     color: '#3B8BD4',
     readOnly: false, // Full access - testing portal
+    portalType: 'task', // Include task chats
   },
   bitrix2: {
     label: 'Дакар',
@@ -35,7 +36,8 @@ export const BITRIX_PORTALS = {
     webhookUserId: 103557, // Webhook user ID — messages from this user are "our" operator messages
     outgoingToken: '9xwao4exygd6pm2b699qma5ouvfkuw8i',
     color: '#1D9E75',
-    readOnly: true, // Stealth mode - read only, no messages!
+    readOnly: false, // Full access - can send messages
+    portalType: 'task', // Include task chats
   },
 };
 

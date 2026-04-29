@@ -105,26 +105,22 @@ function ChatListItem({
   );
 }
 
-// Color palette for different senders (non-operator)
-const SENDER_COLORS = [
-  { bg: '#1e3a2f', border: '#2d6a4f', text: '#b7e4c7', name: '#52b788' },  // green
-  { bg: '#2a1f3d', border: '#5a3d7a', text: '#d4b8e8', name: '#9d72d4' },  // purple
-  { bg: '#3d2a1a', border: '#8b5e3c', text: '#e8c9a8', name: '#d4893c' },  // orange
-  { bg: '#1a2f3d', border: '#3d7a9e', text: '#a8d4e8', name: '#4da8c9' },  // teal
-  { bg: '#3d1a2a', border: '#9e3d5e', text: '#e8a8c2', name: '#c94d72' },  // pink
-  { bg: '#2f3d1a', border: '#7a9e3d', text: '#d4e8a8', name: '#a8c94d' },  // lime
-  { bg: '#1a3d3d', border: '#3d9e9e', text: '#a8e8e8', name: '#4dc9c9' },  // cyan
-  { bg: '#3d2f1a', border: '#9e7a3d', text: '#e8d4a8', name: '#c9a04d' },  // gold
-];
-
-// Deterministic color assignment based on sender name
-function getSenderColor(senderName: string) {
-  let hash = 0;
-  for (let i = 0; i < senderName.length; i++) {
-    hash = senderName.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return SENDER_COLORS[Math.abs(hash) % SENDER_COLORS.length];
-}
+// Subtle muted colors — like Telegram/Bitrix dark theme
+// Incoming (others) = dark grey-blue, Outgoing (you) = dark muted blue
+const MSG_STYLE = {
+  incoming: {
+    bubble: '#1c2533',   // dark grey-blue, calm
+    name: '#8899aa',     // muted blue-grey
+    text: '#c8d1db',     // soft light grey
+    time: '#5a6a7a',     // dim
+  },
+  outgoing: {
+    bubble: '#1a3352',   // dark muted blue (not bright!)
+    name: '#7aabcf',     // soft sky blue
+    text: '#c8d1db',     // same soft light
+    time: '#4a7a9a',     // dim blue
+  },
+};
 
 function MessageBubble({ msg, showName }: { msg: Message; showName: boolean }) {
   const isOut = msg.senderType === 'operator';
@@ -133,49 +129,32 @@ function MessageBubble({ msg, showName }: { msg: Message; showName: boolean }) {
     minute: '2-digit',
   });
 
-  // Get sender-specific color for incoming messages
-  const senderColor = !isOut ? getSenderColor(msg.senderName) : null;
-
-  const bubbleStyle = isOut
-    ? { background: '#1d4ed8' }
-    : senderColor
-      ? { background: senderColor.bg, borderLeft: `3px solid ${senderColor.border}` }
-      : { background: '#1e293b' };
-
-  const nameStyle = isOut
-    ? { color: '#93c5fd' }
-    : senderColor
-      ? { color: senderColor.name }
-      : { color: '#94a3b8' };
-
-  const timeStyle = isOut
-    ? { color: '#60a5fa' }
-    : senderColor
-      ? { color: senderColor.text, opacity: 0.6 }
-      : { color: '#64748b' };
+  const s = isOut ? MSG_STYLE.outgoing : MSG_STYLE.incoming;
 
   return (
-    <div className={`flex ${isOut ? 'justify-end' : 'justify-start'} mb-3`}>
+    <div className={`flex ${isOut ? 'justify-end' : 'justify-start'} mb-2`}>
       <div
-        className={`max-w-[75%] px-4 py-2.5 ${
+        className={`max-w-[75%] px-3.5 py-2 ${
           isOut
             ? 'rounded-[16px_4px_16px_16px]'
             : 'rounded-[4px_16px_16px_16px]'
         }`}
-        style={bubbleStyle}
+        style={{ background: s.bubble }}
       >
         {showName && (
           <div
-            className="text-xs font-semibold mb-1"
-            style={nameStyle}
+            className="text-xs font-medium mb-0.5"
+            style={{ color: s.name }}
           >
             {msg.senderName}
           </div>
         )}
-        <div className="text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</div>
+        <div className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: s.text }}>
+          {msg.text}
+        </div>
         <div
-          className="text-[10px] mt-1"
-          style={timeStyle}
+          className="text-[10px] mt-0.5 text-right"
+          style={{ color: s.time }}
         >
           {time}
         </div>

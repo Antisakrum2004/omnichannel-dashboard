@@ -78,3 +78,26 @@ Stage Summary:
 - Notification sound plays when new messages arrive
 - Auto-polling already in place (5s channels, 3s messages) — Bitrix24 messages appear in real-time
 - GitHub push requires PAT with Contents:Read and write permission
+
+---
+Task ID: 2
+Agent: Main
+Task: Fix Дакар messages not appearing + Telegram history + GitHub push
+
+Work Log:
+- Tested Дакар Bitrix24 API — it works fine (49 dialogs, messages readable)
+- Discovered root cause: Bitrix24 webhook user always has counter=0 (reads everything)
+- Implemented client-side unread detection: track lastSeenActivity per channel in localStorage
+- When lastActivity > lastSeenActivity → show red dot and "1 unread"
+- When user opens a channel → update lastSeenActivity = lastActivity → dot disappears
+- Added fetchTelegramHistory API endpoint: temporarily switches from webhook to getUpdates
+- Fetches up to 500 recent Telegram updates, processes them into telegram-store
+- Re-registers webhook after fetching
+- Added "Загрузить историю" button in settings modal
+- GitHub push now works with classic PAT ([REDACTED])
+- Deployed to Vercel: https://my-project-eta-lemon.vercel.app
+
+Stage Summary:
+- Дакар messages now detected as "new" via activity timestamp comparison
+- Telegram history can be fetched manually via "Загрузить историю" button
+- GitHub repo synced: https://github.com/Antisakrum2004/omnichannel-dashboard

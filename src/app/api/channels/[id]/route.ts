@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getBitrixMessages } from '@/lib/bitrix';
+import { BITRIX_PORTALS } from '@/lib/sources';
 
 export async function GET(
   request: NextRequest,
@@ -43,6 +44,10 @@ export async function GET(
       const portalKey = bitrixMatch[1];
       const dialogPart = bitrixMatch[2];
 
+      // Get the webhook user ID for this portal (messages from this user = operator)
+      const portal = BITRIX_PORTALS[portalKey as keyof typeof BITRIX_PORTALS];
+      const webhookUserId = portal?.webhookUserId;
+
       // Convert to proper dialog ID format
       let dialogId = dialogPart;
       if (!isNaN(Number(dialogPart))) {
@@ -55,11 +60,18 @@ export async function GET(
         if (result?.messages) {
           const messages = result.messages.map((msg: any) => {
             const author = result.users?.find((u: any) => u.id === msg.author_id);
+            // Determine sender type: webhook user = operator, system (id=0) = system, everyone else = client
+            const senderType = msg.author_id === 0
+              ? 'system'
+              : (webhookUserId && msg.author_id === webhookUserId)
+                ? 'operator'
+                : 'client';
             return {
               id: `bx_${msg.id}`,
               channelId: id,
               senderName: author?.name || `User ${msg.author_id}`,
-              senderType: msg.author_id === 0 ? 'system' : 'client',
+              senderType,
+              senderId: msg.author_id, // Include raw author_id for frontend name-based matching
               text: msg.text || '',
               timestamp: new Date(msg.date).toISOString(),
               isRead: !msg.unread,

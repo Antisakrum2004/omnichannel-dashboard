@@ -20,6 +20,7 @@ interface Message {
   channelId: string;
   senderName: string;
   senderType: string;
+  senderId?: number;
   text: string;
   timestamp: string;
   isRead: boolean;
@@ -106,7 +107,7 @@ function ChatListItem({
 }
 
 // Subtle muted colors — like Telegram/Bitrix dark theme
-// Incoming (others) = dark grey-blue, Outgoing (you) = dark muted blue
+// Incoming (others) = dark grey-blue, Outgoing (you) = dark muted teal/green
 const MSG_STYLE = {
   incoming: {
     bubble: '#1c2533',   // dark grey-blue, calm
@@ -115,27 +116,29 @@ const MSG_STYLE = {
     time: '#5a6a7a',     // dim
   },
   outgoing: {
-    bubble: '#1a3352',   // dark muted blue (not bright!)
-    name: '#7aabcf',     // soft sky blue
+    bubble: '#162d24',   // dark muted green-teal (not bright!)
+    name: '#5ab877',     // GREEN — clearly identifies "my" messages
     text: '#c8d1db',     // same soft light
-    time: '#4a7a9a',     // dim blue
+    time: '#3a7a5a',     // dim green
   },
 };
 
-function MessageBubble({ msg, showName }: { msg: Message; showName: boolean }) {
-  const isOut = msg.senderType === 'operator';
+function MessageBubble({ msg, showName, currentUserName }: { msg: Message; showName: boolean; currentUserName: string }) {
+  // "My" message = senderType is operator OR sender name matches current user
+  const isMe = msg.senderType === 'operator' || 
+    (currentUserName && msg.senderName.toLowerCase().trim() === currentUserName.toLowerCase().trim());
   const time = new Date(msg.timestamp).toLocaleTimeString('ru-RU', {
     hour: '2-digit',
     minute: '2-digit',
   });
 
-  const s = isOut ? MSG_STYLE.outgoing : MSG_STYLE.incoming;
+  const s = isMe ? MSG_STYLE.outgoing : MSG_STYLE.incoming;
 
   return (
-    <div className={`flex ${isOut ? 'justify-end' : 'justify-start'} mb-2`}>
+    <div className={`flex ${isMe ? 'justify-end' : 'justify-start'} mb-2`}>
       <div
         className={`max-w-[75%] px-3.5 py-2 ${
-          isOut
+          isMe
             ? 'rounded-[16px_4px_16px_16px]'
             : 'rounded-[4px_16px_16px_16px]'
         }`}
@@ -202,6 +205,22 @@ export default function OmnichannelApp() {
   const [sending, setSending] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  // Current user identity — stored in localStorage so each operator sees their own messages on the right
+  const [currentUserName, setCurrentUserName] = useState<string>('');
+  const [userNameInput, setUserNameInput] = useState<string>('');
+  const [showNameSelector, setShowNameSelector] = useState(false);
+
+  // Load saved user name from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('omnichannel_current_user');
+    if (saved) {
+      setCurrentUserName(saved);
+      setUserNameInput(saved);
+    } else {
+      setShowNameSelector(true);
+    }
+  }, []);
 
   // Fetch channels
   const fetchChannels = useCallback(async () => {
@@ -290,6 +309,7 @@ export default function OmnichannelApp() {
         body: JSON.stringify({
           channelId: activeChannelId,
           text: inputText.trim(),
+          operatorId: currentUserName || undefined,
         }),
       });
       const data = await res.json();
@@ -331,6 +351,13 @@ export default function OmnichannelApp() {
             <h2 className="text-base font-bold text-white">Все чаты</h2>
             <div className="flex items-center gap-1">
               <button
+                onClick={() => setShowNameSelector(true)}
+                className="w-7 h-7 rounded-lg bg-slate-800 text-slate-400 flex items-center justify-center hover:bg-slate-700 hover:text-white transition-colors text-xs"
+                title={currentUserName ? `Вы: ${currentUserName}` : 'Указать имя'}
+              >
+                👤
+              </button>
+              <button
                 onClick={() => syncBitrix('bitrix1')}
                 disabled={syncing}
                 className="w-7 h-7 rounded-lg bg-slate-800 text-slate-400 flex items-center justify-center hover:bg-slate-700 hover:text-white transition-colors text-xs"
@@ -340,6 +367,16 @@ export default function OmnichannelApp() {
               </button>
             </div>
           </div>
+          
+          {/* Current user indicator */}
+          {currentUserName && (
+            <div className="flex items-center gap-1.5 mb-2 px-1">
+              <span className="w-2 h-2 rounded-full bg-green-500" />
+              <span className="text-[11px] text-green-400">{currentUserName}</span>
+              <span className="text-[10px] text-slate-600">(ваши сообщения справа)</span>
+            </div>
+          )}
+          
           <input
             className="w-full bg-[#1e293b] border border-slate-700 rounded-lg text-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-500 placeholder-slate-500"
             placeholder="Поиск чатов..."
@@ -454,7 +491,7 @@ export default function OmnichannelApp() {
                 messages.map((msg, idx) => {
                   const prevMsg = idx > 0 ? messages[idx - 1] : null;
                   const showName = !prevMsg || prevMsg.senderName !== msg.senderName;
-                  return <MessageBubble key={msg.id} msg={msg} showName={showName} />;
+                  return <MessageBubble key={msg.id} msg={msg} showName={showName} currentUserName={currentUserName} />;
                 })
               )}
               <div ref={messagesEndRef} />
@@ -569,6 +606,89 @@ export default function OmnichannelApp() {
           </>
         )}
       </div>
+
+      {/* ─── WHO ARE YOU MODAL ─── */}
+      {showNameSelector && (
+        <div
+          className="fixed inset-0 bg-black/70 flex items-center justify-center z-50"
+          onClick={() => { if (currentUserName) setShowNameSelector(false); }}
+        >
+          <div
+            className="bg-[#151b28] border border-slate-700 rounded-2xl p-6 w-[400px] max-w-[90vw]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-lg font-bold text-white mb-1">Как вас зовут?</div>
+            <div className="text-sm text-slate-400 mb-4">
+              Введите ваше имя так, как оно отображается в чатах. 
+              Ваши сообщения будут показаны <span className="text-green-400 font-medium">зелёным</span> и сдвинуты <span className="text-green-400 font-medium">вправо</span>.
+            </div>
+            
+            {/* Quick pick from existing senders */}
+            {messages.length > 0 && (
+              <div className="mb-3">
+                <div className="text-xs text-slate-500 mb-1.5">Участники чата:</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {[...new Set(messages.map(m => m.senderName))].slice(0, 8).map(name => (
+                    <button
+                      key={name}
+                      className={`px-2.5 py-1 rounded-lg text-xs transition-colors ${
+                        userNameInput.toLowerCase().trim() === name.toLowerCase().trim()
+                          ? 'bg-green-600/30 text-green-400 border border-green-500/50'
+                          : 'bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700'
+                      }`}
+                      onClick={() => setUserNameInput(name)}
+                    >
+                      {name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            <input
+              className="w-full bg-[#1e293b] border border-slate-600 rounded-lg text-white px-4 py-2.5 text-sm outline-none focus:border-green-500 placeholder-slate-500 mb-4"
+              placeholder="Введите ваше имя..."
+              value={userNameInput}
+              onChange={(e) => setUserNameInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && userNameInput.trim()) {
+                  setCurrentUserName(userNameInput.trim());
+                  localStorage.setItem('omnichannel_current_user', userNameInput.trim());
+                  setShowNameSelector(false);
+                }
+              }}
+              autoFocus
+            />
+            <div className="flex justify-end gap-2">
+              {currentUserName && (
+                <button
+                  className="px-4 py-2 rounded-lg text-sm text-slate-400 hover:text-white transition-colors"
+                  onClick={() => setShowNameSelector(false)}
+                >
+                  Отмена
+                </button>
+              )}
+              <button
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  userNameInput.trim()
+                    ? 'bg-green-600 hover:bg-green-500 text-white'
+                    : 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                }`}
+                disabled={!userNameInput.trim()}
+                onClick={() => {
+                  if (userNameInput.trim()) {
+                    setCurrentUserName(userNameInput.trim());
+                    localStorage.setItem('omnichannel_current_user', userNameInput.trim());
+                    setShowNameSelector(false);
+                  }
+                }}
+              >
+                Сохранить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

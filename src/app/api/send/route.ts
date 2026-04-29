@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
         await db.message.create({
           data: {
             channelId: channel?.id || channelId,
-            senderName: 'Оператор',
+            senderName: operatorId || 'Оператор',
             senderType: 'operator',
             text,
             operatorId: operatorId || null,

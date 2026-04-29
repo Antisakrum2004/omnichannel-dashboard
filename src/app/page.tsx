@@ -30,7 +30,7 @@ interface Message {
 }
 
 // ─── Version ───
-const APP_VERSION = 'v1.5';
+const APP_VERSION = 'v1.6';
 
 // ─── Source Config ───
 const SOURCES: Record<string, { label: string; name: string; color: string; bg: string; icon: string }> = {
@@ -204,23 +204,17 @@ function MessageBubble({ msg, showName, currentUserName }: { msg: Message; showN
   const s = isMe ? MSG_STYLE.outgoing : MSG_STYLE.incoming;
 
   return (
-    <div className={`flex gap-2 ${isMe ? 'justify-end' : 'justify-start'} mb-2`}>
-      {/* Avatar on the LEFT for others */}
-      {!isMe && (
-        <div className="flex-shrink-0 pt-0.5">
-          {showName ? (
-            <SenderAvatar name={msg.senderName} avatarUrl={msg.senderAvatar} size={32} />
-          ) : (
-            <div style={{ width: 32 }} />
-          )}
-        </div>
-      )}
+    <div className="flex gap-2 justify-start mb-2">
+      {/* Avatar on the LEFT for everyone */}
+      <div className="flex-shrink-0 pt-0.5">
+        {showName ? (
+          <SenderAvatar name={msg.senderName} avatarUrl={msg.senderAvatar} size={32} />
+        ) : (
+          <div style={{ width: 32 }} />
+        )}
+      </div>
       <div
-        className={`max-w-[70%] px-3.5 py-2 ${
-          isMe
-            ? 'rounded-[16px_4px_16px_16px]'
-            : 'rounded-[4px_16px_16px_16px]'
-        }`}
+        className="max-w-[70%] px-3.5 py-2 rounded-[4px_16px_16px_16px]"
         style={{ background: s.bubble }}
       >
         {showName && (
@@ -241,16 +235,6 @@ function MessageBubble({ msg, showName, currentUserName }: { msg: Message; showN
           {time}
         </div>
       </div>
-      {/* Avatar on the RIGHT for me */}
-      {isMe && (
-        <div className="flex-shrink-0 pt-0.5">
-          {showName ? (
-            <SenderAvatar name={msg.senderName} avatarUrl={msg.senderAvatar} size={32} />
-          ) : (
-            <div style={{ width: 32 }} />
-          )}
-        </div>
-      )}
     </div>
   );
 }
@@ -437,7 +421,7 @@ export default function OmnichannelApp() {
       >
         <div className="px-3 pt-4 pb-2">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-base font-bold text-white">Все чаты</h2>
+            <h2 className="text-base font-bold text-white">Все чаты <span className="text-[10px] font-normal text-slate-500 ml-1">{APP_VERSION}</span></h2>
             <div className="flex items-center gap-1">
               <button
                 onClick={() => setShowNameSelector(true)}
@@ -457,15 +441,15 @@ export default function OmnichannelApp() {
             </div>
           </div>
           
-          {/* Current user indicator */}
+          {/* Current user indicator with avatar */}
           {currentUserName && (
-            <div className="flex items-center gap-1.5 mb-2 px-1">
-              <span className="w-2 h-2 rounded-full bg-green-500" />
-              <span className="text-[11px] text-green-400">{currentUserName}</span>
-              <span className="text-[10px] text-slate-600">(ваши сообщения справа)</span>
+            <div className="flex items-center gap-2 mb-2 px-0.5">
+              <SenderAvatar name={currentUserName} size={22} />
+              <span className="text-[11px] text-slate-300 font-medium">{currentUserName}</span>
+              <span className="text-[10px] text-slate-600">· {APP_VERSION}</span>
             </div>
           )}
-          
+
           <input
             className="w-full bg-[#1e293b] border border-slate-700 rounded-lg text-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-500 placeholder-slate-500"
             placeholder="Поиск чатов..."
@@ -515,7 +499,6 @@ export default function OmnichannelApp() {
         <div className="px-3 py-3 border-t border-slate-800 text-center">
           <div className="text-[11px] text-slate-600">
             {channels.length} чатов · {totalUnread} непрочитанных
-            <span className="ml-2 text-slate-700">{APP_VERSION}</span>
           </div>
         </div>
       </div>

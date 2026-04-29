@@ -1,41 +1,81 @@
-// Get messages for a specific channel
+// Get messages for a specific channel - tries DB, falls back to Bitrix API
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { getBitrixMessages } from '@/lib/bitrix';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const searchParams = request.nextUrl.searchParams;
-  const limit = parseInt(searchParams.get('limit') || '50');
-  const before = searchParams.get('before'); // message ID for cursor pagination
 
   try {
-    const where: any = { channelId: id };
-    if (before) {
-      where.id = { lt: before };
+    // Try DB first
+    try {
+      const dbMessages = await db.message.findMany({
+        where: { channelId: id },
+        orderBy: { timestamp: 'desc' },
+        take: 50,
+      });
+
+      if (dbMessages.length > 0) {
+        // Mark as read
+        await db.message.updateMany({
+          where: { channelId: id, isRead: false },
+          data: { isRead: true },
+        }).catch(() => {});
+        
+        await db.channel.update({
+          where: { id },
+          data: { unreadCount: 0 },
+        }).catch(() => {});
+
+        return NextResponse.json(dbMessages.reverse());
+      }
+    } catch (dbError) {
+      console.warn('[Messages API] DB not available, fetching from Bitrix directly');
     }
 
-    const messages = await db.message.findMany({
-      where,
-      orderBy: { timestamp: 'desc' },
-      take: limit,
-    });
+    // Fallback: parse the channel ID to determine source and fetch from Bitrix
+    // Channel ID format for fallback: bx_bitrix1_chat123
+    const bitrixMatch = id.match(/^bx_(bitrix\d+)_(.+)$/);
+    if (bitrixMatch) {
+      const portalKey = bitrixMatch[1];
+      const dialogPart = bitrixMatch[2];
 
-    // Mark messages as read
-    await db.message.updateMany({
-      where: { channelId: id, isRead: false },
-      data: { isRead: true },
-    });
+      // Convert to proper dialog ID format
+      let dialogId = dialogPart;
+      if (!isNaN(Number(dialogPart))) {
+        // It's a user ID (1:1 chat)
+        dialogId = dialogPart;
+      }
 
-    // Reset unread count on channel
-    await db.channel.update({
-      where: { id },
-      data: { unreadCount: 0 },
-    });
+      try {
+        const result = await getBitrixMessages(portalKey, dialogId, 30);
+        if (result?.messages) {
+          const messages = result.messages.map((msg: any) => {
+            const author = result.users?.find((u: any) => u.id === msg.author_id);
+            return {
+              id: `bx_${msg.id}`,
+              channelId: id,
+              senderName: author?.name || `User ${msg.author_id}`,
+              senderType: msg.author_id === 0 ? 'system' : 'client',
+              text: msg.text || '',
+              timestamp: new Date(msg.date).toISOString(),
+              isRead: !msg.unread,
+              operatorId: null,
+              externalId: `bx_${msg.id}`,
+            };
+          });
 
-    return NextResponse.json(messages.reverse());
+          return NextResponse.json(messages.reverse());
+        }
+      } catch (e) {
+        console.error(`[Messages API] Failed to fetch from ${portalKey}:`, e);
+      }
+    }
+
+    return NextResponse.json([]);
   } catch (error) {
     console.error('[Messages API] Error:', error);
     return NextResponse.json({ error: 'Failed to fetch messages' }, { status: 500 });

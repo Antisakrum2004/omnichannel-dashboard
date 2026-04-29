@@ -9,12 +9,12 @@ datasource db {
 
 model Channel {
   id           String    @id @default(cuid())
-  source       String    // "bitrix1", "bitrix2", "bitrix3", "telegram", "max", "whatsapp"
-  externalId   String    // chat_id in telegram, dialog_id in bitrix
-  name         String    // Display name
-  avatar       String?   // Avatar URL or initials
+  source       String
+  externalId   String
+  name         String
+  avatar       String?
   unreadCount  Int       @default(0)
-  lastMessage  String?   // Last message preview
+  lastMessage  String?
   lastActivity DateTime? @default(now())
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
@@ -28,12 +28,12 @@ model Message {
   id          String   @id @default(cuid())
   channelId   String
   senderName  String
-  senderType  String   // "client" or "operator"
+  senderType  String
   text        String
   timestamp   DateTime @default(now())
   isRead      Boolean  @default(false)
-  operatorId  String?  // Who from our team replied
-  externalId  String?  // ID in the source system (telegram message_id, bitrix message_id)
+  operatorId  String?
+  externalId  String?
 
   channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
 
@@ -50,9 +50,9 @@ model Operator {
 
 model SourceConfig {
   id     String @id @default(cuid())
-  source String @unique // "bitrix1", "bitrix2", "bitrix3", "telegram", "max", "whatsapp"
-  label  String // "Наш Битрикс", "Дакар", etc.
-  color  String // Hex color
-  domain String? // For Bitrix portals
-  config String // JSON string with tokens, secrets, etc.
+  source String @unique
+  label  String
+  color  String
+  domain String?
+  config String
 }

@@ -101,3 +101,33 @@ Stage Summary:
 - Дакар messages now detected as "new" via activity timestamp comparison
 - Telegram history can be fetched manually via "Загрузить историю" button
 - GitHub repo synced: https://github.com/Antisakrum2004/omnichannel-dashboard
+
+---
+Task ID: 3
+Agent: Main
+Task: V3.0 - Full dashboard overhaul per user requests
+
+Work Log:
+- Tested Дакар API directly: works fine (49 channels returned)
+- Changed bitrix2 readOnly: true → readOnly: false (Дакар now full access)
+- Added Telegram history fetch via getUpdates: deleteWebhook → getUpdates → process → setWebhook
+- Created /api/telegram/fetch-history endpoint
+- Added getBitrixTasks + getBitrixTaskComments functions to bitrix.ts
+- Added task chat fetching to channels API (requires webhook with task permissions)
+- Changed input to textarea for Shift+Enter newline support
+- Added delivery/read checkmarks: ✓ delivered, ✓✓ read (blue)
+- Added renameable source group blocks (double-click to rename, persisted in localStorage)
+- Renamed header from "Все чаты v2.0" to "OmniChannel v3.0" with "Все чаты" subtitle
+- Removed duplicate version string from user indicator
+- Cleaned git history of secrets (filter-branch)
+- Pushed to GitHub with classic PAT (force push after history rewrite)
+- Deployed to Vercel production
+
+Stage Summary:
+- Live at: https://my-project-eta-lemon.vercel.app (v3.0)
+- Дакар: readOnly=false, full access enabled
+- Telegram history: fetch via "Загрузить историю" button in settings
+- Task chats: code ready, requires webhook with task permissions on Bitrix24 portals
+- UI: OmniChannel branding, checkmarks, textarea, renameable groups
+- GitHub: https://github.com/Antisakrum2004/omnichannel-dashboard (synced)
+- NOTE: Both Bitrix24 webhooks lack tasks.task.list permission — user needs to create new webhooks with extended scope

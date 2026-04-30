@@ -131,13 +131,11 @@ export async function getBitrixTaskComments(portalKey: string, taskId: string | 
   });
 }
 
-// Get list of tasks
+// Get list of tasks (most recently active, all statuses)
 export async function getBitrixTasks(portalKey: string, limit = 50) {
   return bitrixApi(portalKey, 'tasks.task.list', {
-    filter: { STATUS: ['-4', '-3', '-2', '-1', '1', '2', '3', '4', '5', '6', '7'] },
     select: ['ID', 'TITLE', 'RESPONSIBLE_NAME', 'DATE_ACTIVITY', 'STATUS'],
     order: { DATE_ACTIVITY: 'DESC' },
     start: 0,
-    PARAMS: { NAV_PARAMS: { nPageSize: limit } },
   });
 }

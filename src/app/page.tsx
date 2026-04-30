@@ -42,7 +42,7 @@ interface MessageFile {
 }
 
 // ─── Version ───
-const APP_VERSION = 'v3.1';
+const APP_VERSION = 'v3.2';
 
 // ─── Source Config ───
 const SOURCES: Record<string, { label: string; name: string; color: string; bg: string; icon: string }> = {
@@ -58,7 +58,6 @@ const SOURCE_ORDER = ['bitrix1', 'bitrix2', 'bitrix3', 'telegram', 'max', 'whats
 
 // ─── Tab definitions ───
 const TABS = [
-  { id: 'all', label: 'Все' },
   { id: 'bitrix1', label: 'АтиЛаб' },
   { id: 'bitrix2', label: 'Дакар' },
   { id: 'bitrix3', label: 'Клиент В' },
@@ -440,9 +439,13 @@ export default function OmnichannelApp() {
   const [showNameSelector, setShowNameSelector] = useState(false);
   
   // Tab navigation state
-  const [activeTab, setActiveTab] = useState('all');
+  const [activeTab, setActiveTab] = useState('bitrix1');
   const [tabDirection, setTabDirection] = useState(0); // +1 = right, -1 = left
   const [isSliding, setIsSliding] = useState(false);
+
+  // Tab rename state
+  const [renamingTab, setRenamingTab] = useState<string | null>(null);
+  const [renameInput, setRenameInput] = useState('');
 
   // Custom source names — persist in localStorage
   const [customSourceNames, setCustomSourceNames] = useState<Record<string, string>>(() => {
@@ -459,8 +462,32 @@ export default function OmnichannelApp() {
     localStorage.setItem('omnichannel_source_names', JSON.stringify(customSourceNames));
   }, [customSourceNames]);
 
-  const renameSource = (_sourceKey: string, _newName: string) => {
-    // Reserved for future tab rename feature
+  const renameSource = (sourceKey: string, newName: string) => {
+    if (!newName.trim()) return;
+    setCustomSourceNames(prev => ({ ...prev, [sourceKey]: newName.trim() }));
+  };
+
+  const handleTabDoubleClick = (tabId: string) => {
+    const currentLabel = customSourceNames[tabId] || TABS.find(t => t.id === tabId)?.label || tabId;
+    setRenameInput(currentLabel);
+    setRenamingTab(tabId);
+  };
+
+  const handleRenameConfirm = () => {
+    if (renamingTab && renameInput.trim()) {
+      renameSource(renamingTab, renameInput.trim());
+    }
+    setRenamingTab(null);
+    setRenameInput('');
+  };
+
+  const handleRenameKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleRenameConfirm();
+    } else if (e.key === 'Escape') {
+      setRenamingTab(null);
+      setRenameInput('');
+    }
   };
 
   // Modals
@@ -500,7 +527,7 @@ export default function OmnichannelApp() {
     setTabDirection(newIdx > oldIdx ? 1 : -1);
     setIsSliding(true);
     setActiveTab(newTabId);
-    setTimeout(() => setIsSliding(false), 250);
+    setTimeout(() => setIsSliding(false), 350);
   };
 
   // Track last-seen activity per channel — for detecting NEW messages
@@ -756,9 +783,7 @@ export default function OmnichannelApp() {
     : channels;
 
   // Filter channels by active tab
-  const tabFilteredChannels = activeTab === 'all'
-    ? filteredChannels
-    : filteredChannels.filter(c => c.source === activeTab);
+  const tabFilteredChannels = filteredChannels.filter(c => c.source === activeTab);
 
   const totalUnread = channels.reduce((s, c) => s + getEffectiveUnread(c), 0);
   const uniqueSenders = messages.length > 0 ? [...new Set(messages.map(m => m.senderName))].length : 0;
@@ -785,19 +810,21 @@ export default function OmnichannelApp() {
           {/* Filter / Settings button */}
           <button
             onClick={() => setShowSettingsModal(true)}
-            className="w-9 h-9 rounded-xl bg-slate-800/80 text-slate-400 flex items-center justify-center hover:bg-slate-700 hover:text-white transition-colors flex-shrink-0"
+            className="rounded-lg bg-slate-800/80 text-slate-400 flex items-center justify-center hover:bg-slate-700 hover:text-white transition-colors flex-shrink-0"
+            style={{ width: 25, height: 25 }}
             title="Настройки дашборда"
           >
             <FilterIcon size={18} />
           </button>
 
           {/* Search input */}
-          <div className="flex-1 relative">
-            <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500">
-              <SearchIcon size={14} />
+          <div className="relative" style={{ width: 220 }}>
+            <div className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-500">
+              <SearchIcon size={13} />
             </div>
             <input
-              className="w-full bg-[#1e293b] border border-slate-700 rounded-xl text-slate-200 pl-8 pr-3 py-2 text-sm outline-none focus:border-blue-500 placeholder-slate-500"
+              className="w-full bg-[#1e293b] border border-slate-700 rounded-lg text-slate-200 pl-7 pr-2 text-sm outline-none focus:border-blue-500 placeholder-slate-500"
+              style={{ height: 25, fontSize: 12 }}
               placeholder="Поиск чатов..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -807,10 +834,11 @@ export default function OmnichannelApp() {
           {/* Add chat button — same style as settings button */}
           <button
             onClick={() => setShowAddChatModal(true)}
-            className="w-9 h-9 rounded-xl bg-slate-800/80 text-slate-400 flex items-center justify-center hover:bg-slate-700 hover:text-white transition-colors flex-shrink-0"
+            className="rounded-lg bg-slate-800/80 text-slate-400 flex items-center justify-center hover:bg-slate-700 hover:text-white transition-colors flex-shrink-0"
+            style={{ width: 25, height: 25 }}
             title="Добавить чат"
           >
-            <ComposeIcon size={16} />
+            <ComposeIcon size={18} />
           </button>
         </div>
 
@@ -819,28 +847,44 @@ export default function OmnichannelApp() {
         {/* ─── Tab Bar ─── */}
         <div className="flex gap-1 px-3 py-2 overflow-x-auto scrollbar-none" style={{ scrollbarWidth: 'none' }}>
           {TABS.map(tab => {
-            const tabChannels = tab.id === 'all' ? channels : channels.filter(c => c.source === tab.id);
+            const tabChannels = channels.filter(c => c.source === tab.id);
             const tabUnread = tabChannels.reduce((s, c) => s + getEffectiveUnread(c), 0);
             const isActive = tab.id === activeTab;
+            const isRenaming = renamingTab === tab.id;
             return (
-              <button
-                key={tab.id}
-                onClick={() => switchTab(tab.id)}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
-                  isActive
-                    ? 'bg-[#1e3a5f] text-blue-300'
-                    : 'text-slate-400 hover:bg-slate-800'
-                }`}
-              >
-                {customSourceNames[tab.id] || tab.label}
-                {tabUnread > 0 && (
-                  <span className={`rounded-full px-1.5 py-0 text-[10px] font-bold ${
-                    isActive ? 'bg-blue-500/30 text-blue-300' : 'bg-red-500/20 text-red-400'
-                  }`}>
-                    {tabUnread > 99 ? '99+' : tabUnread}
-                  </span>
+              <div key={tab.id} className="relative">
+                {isRenaming ? (
+                  <input
+                    className="bg-slate-700 text-blue-300 rounded-full px-2 py-1 text-xs font-medium outline-none border border-blue-500/50 w-[70px]"
+                    value={renameInput}
+                    onChange={(e) => setRenameInput(e.target.value)}
+                    onBlur={handleRenameConfirm}
+                    onKeyDown={handleRenameKeyDown}
+                    autoFocus
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                ) : (
+                  <button
+                    onClick={() => switchTab(tab.id)}
+                    onDoubleClick={() => handleTabDoubleClick(tab.id)}
+                    className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-200 ${
+                      isActive
+                        ? 'bg-[#1e3a5f] text-blue-300'
+                        : 'text-slate-400 hover:bg-slate-800'
+                    }`}
+                    title="Двойной клик для переименования"
+                  >
+                    {customSourceNames[tab.id] || tab.label}
+                    {tabUnread > 0 && (
+                      <span className={`rounded-full px-1.5 py-0 text-[10px] font-bold ${
+                        isActive ? 'bg-blue-500/30 text-blue-300' : 'bg-red-500/20 text-red-400'
+                      }`}>
+                        {tabUnread > 99 ? '99+' : tabUnread}
+                      </span>
+                    )}
+                  </button>
                 )}
-              </button>
+              </div>
             );
           })}
         </div>
@@ -852,7 +896,7 @@ export default function OmnichannelApp() {
             className="absolute inset-0 overflow-y-auto"
             style={{
               animation: isSliding
-                ? `slideIn${tabDirection > 0 ? 'Right' : 'Left'} 0.25s ease forwards`
+                ? `slideIn${tabDirection > 0 ? 'Right' : 'Left'} 0.35s cubic-bezier(0.19, 1, 0.22, 1) forwards`
                 : 'none',
             }}
           >

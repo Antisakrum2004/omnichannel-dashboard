@@ -32,7 +32,7 @@ export async function POST() {
     // 4. Process messages from updates
     let newMessages = 0;
     for (const update of allUpdates) {
-      const message = update.message || update.edited_message;
+      const message = update.message || update.edited_message || update.channel_post || update.edited_channel_post;
       if (!message) continue;
 
       const chatId = String(message.chat.id);
@@ -45,7 +45,7 @@ export async function POST() {
       const isFromBot = message.from?.is_bot === true;
       const senderName = message.from
         ? `${message.from.first_name || ''} ${message.from.last_name || ''}`.trim() || 'Unknown'
-        : 'Unknown';
+        : 'Channel Post';
       const text = message.text || message.caption || '';
 
       if (!text && !message.caption) continue;
@@ -73,7 +73,7 @@ export async function POST() {
     // 5. Fetch chat avatars for unique chats
     const processedChatIds = new Set<string>();
     for (const update of allUpdates) {
-      const message = update.message || update.edited_message;
+      const message = update.message || update.edited_message || update.channel_post || update.edited_channel_post;
       if (!message) continue;
       const chatId = String(message.chat.id);
       const channelId = `tg_${chatId}`;

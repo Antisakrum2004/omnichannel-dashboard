@@ -1,7 +1,7 @@
 // Webhook endpoint for Bitrix24 outgoing webhooks
-// URL: /api/webhook/bitrix/1 or /api/webhook/bitrix/2
+// URL: /api/webhook/bitrix/bitrix1 or /api/webhook/bitrix/bitrix2
+// Handles: IM events (OnImMessageAdd), Task events (OnTaskAdd, OnTaskUpdate, OnTaskCommentAdd)
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
 import { verifyBitrixWebhookToken, getBitrixDialoInfo } from '@/lib/bitrix';
 import { normalizeBitrixMessage } from '@/lib/gateway';
 
@@ -12,71 +12,64 @@ export async function POST(
   const { portal } = await params;
   const body = await request.json();
 
-  console.log(`[Bitrix Webhook] Portal: ${portal}, Event:`, body.event || 'unknown');
+  const event = body.event || body.EVENT || 'unknown';
+  console.log(`[Bitrix Webhook] Portal: ${portal}, Event: ${event}`);
 
-  // Verify authenticity
+  // Verify authenticity (if token present)
   const token = body.auth?.application_token || '';
-  if (!verifyBitrixWebhookToken(portal, token)) {
+  if (token && !verifyBitrixWebhookToken(portal, token)) {
     console.warn(`[Bitrix Webhook] Token mismatch for portal ${portal}. Got: ${token.substring(0, 8)}...`);
   }
 
   try {
-    const normalized = normalizeBitrixMessage(portal, body);
-    if (!normalized || !normalized.text) {
-      return NextResponse.json({ ok: true, message: 'No message to process' });
+    // ─── IM Message Event (OnImMessageAdd) ───
+    if (event === 'OnImMessageAdd' || event === 'ONIMMESSAGEADD') {
+      const normalized = normalizeBitrixMessage(portal, body);
+      if (!normalized || !normalized.text) {
+        return NextResponse.json({ ok: true, message: 'No message to process' });
+      }
+
+      // For now, we just log it — the polling will pick it up on next cycle
+      // In the future, we could push this to a real-time channel (WebSocket/SSE)
+      console.log(`[Bitrix Webhook] IM message from ${normalized.senderName}: ${normalized.text.substring(0, 50)}`);
+      return NextResponse.json({ ok: true });
     }
 
-    // Find or create channel
-    let channel = await db.channel.findUnique({
-      where: { source_externalId: { source: normalized.source, externalId: normalized.channelExternalId } },
-    });
-
-    if (!channel) {
-      let channelName = normalized.channelName || `Битрикс чат`;
-      try {
-        const dialogId = body.data?.DIALOG_ID || '';
-        if (dialogId) {
-          const dialogInfo = await getBitrixDialoInfo(portal, dialogId);
-          if (dialogInfo?.name) channelName = dialogInfo.name;
-        }
-      } catch (e) { /* ignore */ }
-
-      channel = await db.channel.create({
-        data: {
-          source: normalized.source,
-          externalId: normalized.channelExternalId,
-          name: channelName,
-          unreadCount: normalized.senderType === 'client' ? 1 : 0,
-          lastMessage: normalized.text.substring(0, 100),
-          lastActivity: normalized.timestamp,
-        },
-      });
-    } else {
-      await db.channel.update({
-        where: { id: channel.id },
-        data: {
-          unreadCount: normalized.senderType === 'client' ? { increment: 1 } : undefined,
-          lastMessage: normalized.text.substring(0, 100),
-          lastActivity: normalized.timestamp,
-        },
-      });
+    // ─── Task Events ───
+    if (event === 'OnTaskAdd' || event === 'ONTASKADD') {
+      const taskId = body.data?.FIELDS?.ID || body.data?.ID || body.FIELDS?.ID;
+      const taskTitle = body.data?.FIELDS?.TITLE || body.data?.TITLE || body.FIELDS?.TITLE || `Задача #${taskId}`;
+      console.log(`[Bitrix Webhook] New task: #${taskId} "${taskTitle}"`);
+      return NextResponse.json({ ok: true });
     }
 
-    await db.message.create({
-      data: {
-        channelId: channel.id,
-        senderName: normalized.senderName,
-        senderType: normalized.senderType,
-        text: normalized.text,
-        timestamp: normalized.timestamp,
-        externalId: normalized.externalMessageId,
-      },
-    });
+    if (event === 'OnTaskUpdate' || event === 'ONTASKUPDATE') {
+      const taskId = body.data?.FIELDS?.ID || body.data?.ID || body.FIELDS?.ID;
+      console.log(`[Bitrix Webhook] Task updated: #${taskId}`);
+      return NextResponse.json({ ok: true });
+    }
 
-    return NextResponse.json({ ok: true });
+    if (event === 'OnTaskCommentAdd' || event === 'ONTASKCOMMENTADD') {
+      const taskId = body.data?.FIELDS?.TASK_ID || body.data?.TASK_ID || body.FIELDS?.TASK_ID;
+      const commentId = body.data?.FIELDS?.ID || body.data?.ID || body.FIELDS?.ID;
+      const commentText = body.data?.FIELDS?.POST_MESSAGE || body.data?.POST_MESSAGE || body.FIELDS?.POST_MESSAGE || '';
+      const authorName = body.data?.FIELDS?.AUTHOR_NAME || body.data?.AUTHOR_NAME || body.FIELDS?.AUTHOR_NAME || 'Unknown';
+      console.log(`[Bitrix Webhook] Task comment on #${taskId} by ${authorName}: ${commentText.substring(0, 50)}`);
+      return NextResponse.json({ ok: true });
+    }
+
+    if (event === 'OnTaskDelete' || event === 'ONTASKDELETE') {
+      const taskId = body.data?.FIELDS?.ID || body.data?.ID || body.FIELDS?.ID;
+      console.log(`[Bitrix Webhook] Task deleted: #${taskId}`);
+      return NextResponse.json({ ok: true });
+    }
+
+    // ─── Generic fallback ───
+    console.log(`[Bitrix Webhook] Unhandled event: ${event}`, JSON.stringify(body).substring(0, 200));
+    return NextResponse.json({ ok: true, message: `Event ${event} received but not processed` });
   } catch (error) {
     console.error('[Bitrix Webhook] Error:', error);
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true }); // Always return 200
   }
 }
 

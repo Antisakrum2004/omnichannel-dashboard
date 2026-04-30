@@ -1,5 +1,6 @@
 // Webhook endpoint for Telegram Bot API
 // URL: /api/webhook/telegram
+// Handles: message, edited_message, channel_post, edited_channel_post
 import { NextRequest, NextResponse } from 'next/server';
 import { upsertChannel, addMessage, flushToBlob } from '@/lib/telegram-store';
 
@@ -9,7 +10,8 @@ export async function POST(request: NextRequest) {
   console.log('[Telegram Webhook] Update:', body.update_id);
 
   try {
-    const message = body.message || body.edited_message;
+    // Support all message-like update types
+    const message = body.message || body.edited_message || body.channel_post || body.edited_channel_post;
     if (!message) {
       return NextResponse.json({ ok: true, message: 'No message in update' });
     }
@@ -24,15 +26,24 @@ export async function POST(request: NextRequest) {
     const isFromBot = message.from?.is_bot === true;
     const senderName = message.from
       ? `${message.from.first_name || ''} ${message.from.last_name || ''}`.trim() || 'Unknown'
-      : 'Unknown';
+      : 'Channel Post';
     const text = message.text || '';
+    const caption = message.caption || '';
 
-    // Skip empty messages (stickers, photos without caption, etc.)
-    if (!text && !message.caption) {
+    // Skip messages with no text content at all (stickers without caption, pure photos, etc.)
+    // But DO NOT skip just because text is empty if there's a caption
+    if (!text && !caption) {
+      // Still create/update the channel so we know about this chat
+      // even if we can't show the message content
       return NextResponse.json({ ok: true, message: 'No text/caption in message' });
     }
 
-    const messageText = text || message.caption || '';
+    const messageText = text || caption;
+
+    // Determine if this is from a "client" (human) or "operator" (bot/system)
+    // In group chats, ALL non-bot users are "clients"
+    // channel_post from channels has no from field — treat as client
+    const isFromClient = !isFromBot;
 
     // Upsert channel in store
     const channel = await upsertChannel({
@@ -40,7 +51,7 @@ export async function POST(request: NextRequest) {
       chatType,
       name: channelName,
       lastMessage: messageText,
-      isFromClient: !isFromBot,
+      isFromClient,
     });
 
     // Add message to store

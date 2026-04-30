@@ -57,7 +57,7 @@ export async function setTelegramWebhook(url: string, secretToken: string) {
   return telegramApi('setWebhook', {
     url,
     secret_token: secretToken,
-    allowed_updates: ['message', 'edited_message'],
+    allowed_updates: ['message', 'edited_message', 'channel_post', 'edited_channel_post'],
   });
 }
 
@@ -71,7 +71,7 @@ export async function getTelegramUpdates(offset = 0, limit = 100) {
   return telegramApi('getUpdates', {
     offset,
     limit,
-    allowed_updates: ['message', 'edited_message'],
+    allowed_updates: ['message', 'edited_message', 'channel_post', 'edited_channel_post'],
     timeout: 0,
   });
 }

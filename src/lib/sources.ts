@@ -22,7 +22,7 @@ export const BITRIX_PORTALS = {
   bitrix1: {
     label: 'Наш Битрикс',
     domain: '1c-cms.bitrix24.ru',
-    webhookUrl: 'https://1c-cms.bitrix24.ru/rest/116/962u568uyeakin6y/',
+    webhookUrl: 'https://1c-cms.bitrix24.ru/rest/116/es8z4taxj1hzlp8b/',
     webhookUserId: 116, // Webhook user ID — messages from this user are "our" operator messages
     outgoingToken: 'e3ecp1omrqwo75qqe2nng9e3m9y1xiym',
     color: '#3B8BD4',
@@ -32,7 +32,7 @@ export const BITRIX_PORTALS = {
   bitrix2: {
     label: 'Дакар',
     domain: 'dakar.bitrix24.ru',
-    webhookUrl: 'https://dakar.bitrix24.ru/rest/103557/bkc0fjrp9nagpj10/',
+    webhookUrl: 'https://dakar.bitrix24.ru/rest/103557/7vdwpqb1buur4j0x/',
     webhookUserId: 103557, // Webhook user ID — messages from this user are "our" operator messages
     outgoingToken: '9xwao4exygd6pm2b699qma5ouvfkuw8i',
     color: '#1D9E75',

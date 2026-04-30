@@ -1,21 +1,44 @@
 // Bitrix24 API adapter - reads dialogs, messages, sends replies
+// Uses IM webhook for chat operations and Tasks webhook for task operations
 import { BITRIX_PORTALS } from './sources';
 
 interface BitrixPortal {
   label: string;
   domain: string;
   webhookUrl: string;
+  tasksWebhookUrl: string;
+  webhookUserId: number;
   outgoingToken: string;
   color: string;
   readOnly: boolean;
+}
+
+// Determine which webhook URL to use based on the API method
+function getWebhookUrl(portal: BitrixPortal, method: string): string {
+  // Task-related methods use the tasks webhook
+  const taskMethods = [
+    'tasks.task.list',
+    'tasks.task.get',
+    'task.commentitem.getlist',
+    'task.commentitem.add',
+    'task.elogs.getlist',
+  ];
+
+  if (taskMethods.some(m => method.startsWith(m.split('.')[0]))) {
+    return portal.tasksWebhookUrl || portal.webhookUrl;
+  }
+
+  // All other methods (IM, CRM, etc.) use the default webhook
+  return portal.webhookUrl;
 }
 
 async function bitrixApi(portalKey: string, method: string, params: Record<string, any> = {}): Promise<any> {
   const portal = BITRIX_PORTALS[portalKey as keyof typeof BITRIX_PORTALS] as BitrixPortal | undefined;
   if (!portal) throw new Error(`Unknown portal: ${portalKey}`);
 
-  const url = `${portal.webhookUrl}${method}`;
-  
+  const baseUrl = getWebhookUrl(portal, method);
+  const url = `${baseUrl}${method}`;
+
   try {
     const response = await fetch(url, {
       method: 'POST',
@@ -108,7 +131,7 @@ export async function getBitrixTaskComments(portalKey: string, taskId: string | 
   });
 }
 
-// Get list of tasks 
+// Get list of tasks
 export async function getBitrixTasks(portalKey: string, limit = 50) {
   return bitrixApi(portalKey, 'tasks.task.list', {
     filter: { STATUS: ['-4', '-3', '-2', '-1', '1', '2', '3', '4', '5', '6', '7'] },

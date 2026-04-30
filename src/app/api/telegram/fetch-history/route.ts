@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { deleteTelegramWebhook, getTelegramUpdates, setTelegramWebhook, getTelegramMe } from '@/lib/telegram';
-import { upsertChannel, addMessage } from '@/lib/telegram-store';
+import { deleteTelegramWebhook, getTelegramUpdates, setTelegramWebhook, getTelegramMe, getTelegramChat } from '@/lib/telegram';
+import { upsertChannel, addMessage, updateChannelAvatar } from '@/lib/telegram-store';
 
 export async function POST() {
   try {
@@ -70,7 +70,29 @@ export async function POST() {
       if (msg) newMessages++;
     }
 
-    // 5. Re-set webhook
+    // 5. Fetch chat avatars for unique chats
+    const processedChatIds = new Set<string>();
+    for (const update of allUpdates) {
+      const message = update.message || update.edited_message;
+      if (!message) continue;
+      const chatId = String(message.chat.id);
+      const channelId = `tg_${chatId}`;
+      if (processedChatIds.has(channelId)) continue;
+      processedChatIds.add(channelId);
+
+      try {
+        const chatInfo = await getTelegramChat(chatId);
+        if (chatInfo?.photo?.small_file_id) {
+          // Store the file_id reference — actual URL requires getFile API call
+          // For now, we skip constructing the URL as it needs another API call
+          // Avatars will be fetched on demand or in a future enhancement
+        }
+      } catch (e) {
+        // Ignore avatar fetch errors — non-critical
+      }
+    }
+
+    // 6. Re-set webhook
     const webhookUrl = process.env.VERCEL_URL 
       ? `https://${process.env.VERCEL_URL}/api/webhook/telegram`
       : 'https://my-project-eta-lemon.vercel.app/api/webhook/telegram';

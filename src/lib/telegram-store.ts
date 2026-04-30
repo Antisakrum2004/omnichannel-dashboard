@@ -12,6 +12,7 @@ interface TgChannel {
   lastActivity: string;
   chatType: string;     // 'group', 'supergroup', 'private'
   telegramChatId: string; // original chat id
+  avatarUrl?: string | null;
 }
 
 interface TgMessage {
@@ -46,24 +47,39 @@ export function upsertChannel(data: {
   name: string;
   lastMessage?: string;
   isFromClient?: boolean;
+  avatarUrl?: string | null;
 }): TgChannel {
   const id = `tg_${data.chatId}`;
   const existing = channels.get(id);
+
+  // Only increment unreadCount when isFromClient is true
+  // When isFromClient is false (operator/bot message), keep existing unreadCount
+  let unreadCount: number;
+  if (existing) {
+    unreadCount = data.isFromClient
+      ? Math.max(0, existing.unreadCount + 1)
+      : existing.unreadCount;
+  } else {
+    unreadCount = data.isFromClient ? 1 : 0;
+  }
+
+  // Preserve existing avatarUrl if not provided
+  const avatarUrl = data.avatarUrl !== undefined ? data.avatarUrl : existing?.avatarUrl ?? null;
 
   const channel: TgChannel = {
     id,
     source: 'telegram',
     externalId: id,
     name: data.name || 'Telegram Chat',
-    unreadCount: existing
-      ? existing.unreadCount + (data.isFromClient ? 1 : 0)
-      : (data.isFromClient ? 1 : 0),
+    unreadCount,
     lastMessage: data.lastMessage?.substring(0, 100) || existing?.lastMessage || null,
     lastActivity: new Date().toISOString(),
     chatType: data.chatType,
     telegramChatId: String(data.chatId),
+    avatarUrl,
   };
 
+  // ALWAYS keep the channel in the store, even when unreadCount is 0
   channels.set(id, channel);
   return channel;
 }
@@ -82,6 +98,7 @@ export function resetUnread(channelId: string): void {
   const ch = channels.get(channelId);
   if (ch) {
     ch.unreadCount = 0;
+    // Always keep the channel in the store — do NOT remove it
     channels.set(channelId, ch);
   }
 }
@@ -128,6 +145,14 @@ export function addMessage(data: {
 export function getMessages(channelId: string, limit = 50): TgMessage[] {
   const channelMsgs = messages.get(channelId) || [];
   return channelMsgs.slice(-limit);
+}
+
+export function updateChannelAvatar(channelId: string, avatarUrl: string) {
+  const ch = channels.get(channelId);
+  if (ch) {
+    ch.avatarUrl = avatarUrl;
+    channels.set(channelId, ch);
+  }
 }
 
 export function getStoreStats() {

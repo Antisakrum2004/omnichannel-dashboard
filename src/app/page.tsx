@@ -42,7 +42,7 @@ interface MessageFile {
 }
 
 // ─── Version ───
-const APP_VERSION = 'v3.0';
+const APP_VERSION = 'v3.1';
 
 // ─── Source Config ───
 const SOURCES: Record<string, { label: string; name: string; color: string; bg: string; icon: string }> = {
@@ -55,6 +55,17 @@ const SOURCES: Record<string, { label: string; name: string; color: string; bg: 
 };
 
 const SOURCE_ORDER = ['bitrix1', 'bitrix2', 'bitrix3', 'telegram', 'max', 'whatsapp'];
+
+// ─── Tab definitions ───
+const TABS = [
+  { id: 'all', label: 'Все' },
+  { id: 'bitrix1', label: 'АтиЛаб' },
+  { id: 'bitrix2', label: 'Дакар' },
+  { id: 'bitrix3', label: 'Клиент В' },
+  { id: 'telegram', label: 'ТГ' },
+  { id: 'max', label: 'МАКС' },
+  { id: 'whatsapp', label: 'WA' },
+];
 
 // ─── SVG Icon Components (Modern Flat UI) ───
 
@@ -91,23 +102,7 @@ function ComposeIcon({ size = 20 }: { size?: number }) {
   );
 }
 
-function ChevronIcon({ open, size = 14 }: { open: boolean; size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      style={{ transform: open ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }}
-    >
-      <polyline points="9 18 15 12 9 6" />
-    </svg>
-  );
-}
+// (ChevronIcon removed — no longer needed with tab navigation)
 
 // ─── UI Components ───
 
@@ -371,7 +366,7 @@ function MessageBubble({ msg, showName, currentUserName }: { msg: Message; showN
         <div className="text-[10px] mt-0.5 text-right flex items-center justify-end gap-1" style={{ color: s.time }}>
           <span>{time}</span>
           {isMe && (
-            <span style={{ color: msg.isRead ? '#4fc3f7' : s.time, fontSize: '11px' }}>
+            <span style={{ color: msg.isRead ? '#4fc3f7' : s.time, fontSize: '10px' }}>
               {msg.isRead ? '✓✓' : '✓'}
             </span>
           )}
@@ -408,14 +403,7 @@ function formatTimeFull(dateStr: string): string {
   });
 }
 
-function groupChannels(channels: Channel[]) {
-  const groups: Record<string, Channel[]> = {};
-  for (const src of SOURCE_ORDER) {
-    const items = channels.filter((c) => c.source === src);
-    groups[src] = items; // Always include all groups, even if empty
-  }
-  return groups;
-}
+// (groupChannels removed — replaced by tab-based filtering)
 
 function getBitrixDomain(source: string): string | null {
   switch (source) {
@@ -451,14 +439,10 @@ export default function OmnichannelApp() {
   const [userNameInput, setUserNameInput] = useState<string>('');
   const [showNameSelector, setShowNameSelector] = useState(false);
   
-  // Collapsible groups state — persist in localStorage
-  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('omnichannel_collapsed_groups');
-      return saved ? JSON.parse(saved) : {};
-    }
-    return {};
-  });
+  // Tab navigation state
+  const [activeTab, setActiveTab] = useState('all');
+  const [tabDirection, setTabDirection] = useState(0); // +1 = right, -1 = left
+  const [isSliding, setIsSliding] = useState(false);
 
   // Custom source names — persist in localStorage
   const [customSourceNames, setCustomSourceNames] = useState<Record<string, string>>(() => {
@@ -468,20 +452,15 @@ export default function OmnichannelApp() {
     }
     return {};
   });
-  const [editingSource, setEditingSource] = useState<string | null>(null);
-  const [editingSourceName, setEditingSourceName] = useState('');
+
 
   // Persist custom source names
   useEffect(() => {
     localStorage.setItem('omnichannel_source_names', JSON.stringify(customSourceNames));
   }, [customSourceNames]);
 
-  const renameSource = (sourceKey: string, newName: string) => {
-    setCustomSourceNames(prev => {
-      const next = { ...prev, [sourceKey]: newName };
-      localStorage.setItem('omnichannel_source_names', JSON.stringify(next));
-      return next;
-    });
+  const renameSource = (_sourceKey: string, _newName: string) => {
+    // Reserved for future tab rename feature
   };
 
   // Modals
@@ -514,13 +493,14 @@ export default function OmnichannelApp() {
     }
   }, []);
 
-  // Persist collapsed groups
-  useEffect(() => {
-    localStorage.setItem('omnichannel_collapsed_groups', JSON.stringify(collapsedGroups));
-  }, [collapsedGroups]);
-
-  const toggleGroup = (source: string) => {
-    setCollapsedGroups(prev => ({ ...prev, [source]: !prev[source] }));
+  const switchTab = (newTabId: string) => {
+    if (newTabId === activeTab || isSliding) return;
+    const oldIdx = TABS.findIndex(t => t.id === activeTab);
+    const newIdx = TABS.findIndex(t => t.id === newTabId);
+    setTabDirection(newIdx > oldIdx ? 1 : -1);
+    setIsSliding(true);
+    setActiveTab(newTabId);
+    setTimeout(() => setIsSliding(false), 250);
   };
 
   // Track last-seen activity per channel — for detecting NEW messages
@@ -775,7 +755,11 @@ export default function OmnichannelApp() {
       )
     : channels;
 
-  const grouped = groupChannels(filteredChannels);
+  // Filter channels by active tab
+  const tabFilteredChannels = activeTab === 'all'
+    ? filteredChannels
+    : filteredChannels.filter(c => c.source === activeTab);
+
   const totalUnread = channels.reduce((s, c) => s + getEffectiveUnread(c), 0);
   const uniqueSenders = messages.length > 0 ? [...new Set(messages.map(m => m.senderName))].length : 0;
 
@@ -788,8 +772,10 @@ export default function OmnichannelApp() {
       >
         {/* ─── Header: Title + Version ─── */}
         <div className="px-4 pt-4 pb-1">
-          <h2 className="text-base font-bold text-white">
-            OmniChannel <span className="text-sm font-bold text-white/90 ml-1">{APP_VERSION}</span>
+          <h2 className="text-base font-bold">
+            <span className="text-white">Omni</span>
+            <span style={{ color: '#229ED9' }}>Channel</span>
+            <span className="text-sm font-bold text-white/90 ml-1">{APP_VERSION}</span>
           </h2>
           <div className="text-xs text-slate-500 mt-0.5">Все чаты</div>
         </div>
@@ -828,91 +814,64 @@ export default function OmnichannelApp() {
           </button>
         </div>
 
-        {/* Current user indicator */}
-        {currentUserName && (
-          <div className="flex items-center gap-2 px-4 pb-2">
-            <SenderAvatar name={currentUserName} size={20} />
-            <span className="text-[11px] text-slate-300 font-medium">{currentUserName}</span>
 
+
+        {/* ─── Tab Bar ─── */}
+        <div className="flex gap-1 px-3 py-2 overflow-x-auto scrollbar-none" style={{ scrollbarWidth: 'none' }}>
+          {TABS.map(tab => {
+            const tabChannels = tab.id === 'all' ? channels : channels.filter(c => c.source === tab.id);
+            const tabUnread = tabChannels.reduce((s, c) => s + getEffectiveUnread(c), 0);
+            const isActive = tab.id === activeTab;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => switchTab(tab.id)}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
+                  isActive
+                    ? 'bg-[#1e3a5f] text-blue-300'
+                    : 'text-slate-400 hover:bg-slate-800'
+                }`}
+              >
+                {customSourceNames[tab.id] || tab.label}
+                {tabUnread > 0 && (
+                  <span className={`rounded-full px-1.5 py-0 text-[10px] font-bold ${
+                    isActive ? 'bg-blue-500/30 text-blue-300' : 'bg-red-500/20 text-red-400'
+                  }`}>
+                    {tabUnread > 99 ? '99+' : tabUnread}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* ─── Chat List with Slide Animation ─── */}
+        <div className="flex-1 overflow-hidden relative">
+          <div
+            key={activeTab}
+            className="absolute inset-0 overflow-y-auto"
+            style={{
+              animation: isSliding
+                ? `slideIn${tabDirection > 0 ? 'Right' : 'Left'} 0.25s ease forwards`
+                : 'none',
+            }}
+          >
+            {loading ? (
+              <div className="text-center text-slate-500 py-8 text-sm">Загрузка чатов...</div>
+            ) : tabFilteredChannels.length === 0 ? (
+              <div className="text-[11px] text-slate-600 px-4 py-4 italic">Нет чатов</div>
+            ) : (
+              tabFilteredChannels.map(ch => (
+                <ChatListItem
+                  key={ch.id}
+                  channel={ch}
+                  isActive={ch.id === activeChannelId}
+                  effectiveUnread={getEffectiveUnread(ch)}
+                  onClick={() => handleChannelClick(ch.id)}
+                />
+              ))
+            )}
           </div>
-        )}
-
-        {/* ─── Channel Groups (collapsible) ─── */}
-        <div className="flex-1 overflow-y-auto">
-          {loading ? (
-            <div className="text-center text-slate-500 py-8 text-sm">Загрузка чатов...</div>
-          ) : (
-            SOURCE_ORDER.map((source) => {
-              const src = SOURCES[source];
-              const items = grouped[source] || [];
-              const isCollapsed = collapsedGroups[source] || false;
-              const groupUnread = items.reduce((s, c) => s + getEffectiveUnread(c), 0);
-
-              return (
-                <div key={source}>
-                  {/* Group header — clickable to expand/collapse */}
-                  <button
-                    className="w-full flex items-center gap-2 px-4 py-2 text-[12px] font-semibold text-slate-400 uppercase tracking-wider hover:bg-slate-800/50 transition-colors"
-                    onClick={() => toggleGroup(source)}
-                  >
-                    <ChevronIcon open={!isCollapsed} />
-                    <span
-                      className="w-2 h-2 rounded-full flex-shrink-0"
-                      style={{ background: src?.color || '#666' }}
-                    />
-                    <span
-                      className="truncate text-left"
-                      onDoubleClick={(e) => {
-                        e.stopPropagation();
-                        setEditingSource(source);
-                        setEditingSourceName(customSourceNames[source] || src?.name || source);
-                      }}
-                    >{customSourceNames[source] || src?.name || source}</span>
-                    {editingSource === source ? (
-                      <input
-                        className="w-24 bg-slate-800 border border-slate-600 rounded px-1.5 py-0.5 text-xs text-slate-200 outline-none focus:border-blue-500"
-                        value={editingSourceName}
-                        onChange={(e) => setEditingSourceName(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            renameSource(source, editingSourceName);
-                            setEditingSource(null);
-                          } else if (e.key === 'Escape') {
-                            setEditingSource(null);
-                          }
-                        }}
-                        onBlur={() => {
-                          renameSource(source, editingSourceName);
-                          setEditingSource(null);
-                        }}
-                        autoFocus
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    ) : null}
-                    <span className="text-slate-600 ml-auto">{items.length}</span>
-                    {groupUnread > 0 && <UnreadBadge count={groupUnread} />}
-                  </button>
-
-                  {/* Expanded: chat items */}
-                  {!isCollapsed && (
-                    items.length === 0 ? (
-                      <div className="text-[11px] text-slate-600 px-4 pl-10 py-2 italic">Пусто</div>
-                    ) : (
-                      items.map((ch) => (
-                        <ChatListItem
-                          key={ch.id}
-                          channel={ch}
-                          isActive={ch.id === activeChannelId}
-                          effectiveUnread={getEffectiveUnread(ch)}
-                          onClick={() => handleChannelClick(ch.id)}
-                        />
-                      ))
-                    )
-                  )}
-                </div>
-              );
-            })
-          )}
         </div>
 
         {/* Footer stats */}

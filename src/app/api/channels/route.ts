@@ -108,7 +108,7 @@ export async function GET() {
         lastActivity: ch.lastActivity,
         messageCount: 0,
         unreadMessages: ch.unreadCount,
-        avatarUrl: null,
+        avatarUrl: ch.avatarUrl ?? null,
       });
     }
 

@@ -1,4 +1,4 @@
-// Get messages for a specific channel - supports Bitrix API and Telegram in-memory store
+// Get messages for a specific channel - supports Bitrix API and Telegram persistent store
 import { NextRequest, NextResponse } from 'next/server';
 import { getBitrixMessages } from '@/lib/bitrix';
 import { BITRIX_PORTALS } from '@/lib/sources';
@@ -13,8 +13,8 @@ export async function GET(
   try {
     // ─── Telegram channel ───
     if (id.startsWith('tg_')) {
-      const tgMsgs = getTgMessages(id, 50);
-      resetUnread(id);
+      const tgMsgs = await getTgMessages(id, 50);
+      await resetUnread(id);
       return NextResponse.json(tgMsgs);
     }
 

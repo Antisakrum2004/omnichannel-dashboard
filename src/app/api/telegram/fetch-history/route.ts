@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { deleteTelegramWebhook, getTelegramUpdates, setTelegramWebhook, getTelegramMe, getTelegramChat } from '@/lib/telegram';
-import { upsertChannel, addMessage, updateChannelAvatar } from '@/lib/telegram-store';
+import { upsertChannel, addMessage, updateChannelAvatar, flushToBlob } from '@/lib/telegram-store';
 
 export async function POST() {
   try {
@@ -17,7 +17,7 @@ export async function POST() {
     let allUpdates: any[] = [];
     let offset = 0;
     let hasMore = true;
-    
+
     while (hasMore) {
       const updates = await getTelegramUpdates(offset, 100);
       if (!updates || updates.length === 0) {
@@ -50,7 +50,7 @@ export async function POST() {
 
       if (!text && !message.caption) continue;
 
-      const channel = upsertChannel({
+      const channel = await upsertChannel({
         chatId,
         chatType,
         name: channelName,
@@ -58,7 +58,7 @@ export async function POST() {
         isFromClient: !isFromBot,
       });
 
-      const msg = addMessage({
+      const msg = await addMessage({
         channelId: channel.id,
         senderName,
         senderType: isFromBot ? 'operator' : 'client',
@@ -92,11 +92,11 @@ export async function POST() {
       }
     }
 
-    // 6. Re-set webhook
-    const webhookUrl = process.env.VERCEL_URL 
-      ? `https://${process.env.VERCEL_URL}/api/webhook/telegram`
-      : 'https://my-project-eta-lemon.vercel.app/api/webhook/telegram';
-    
+    // 6. Force save all data to Blob before re-setting webhook
+    await flushToBlob();
+
+    // 7. Re-set webhook to production URL
+    const webhookUrl = 'https://my-project-eta-lemon.vercel.app/api/webhook/telegram';
     await setTelegramWebhook(webhookUrl, 'omni_tg_secret_2024');
 
     return NextResponse.json({

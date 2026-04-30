@@ -1,4 +1,4 @@
-// Get all channels - tries DB first, falls back to Bitrix API + Telegram in-memory store
+// Get all channels - tries DB first, falls back to Bitrix API + Telegram persistent store
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getBitrixDialogs, getBitrixTasks } from '@/lib/bitrix';
@@ -95,8 +95,8 @@ export async function GET() {
       }
     }
 
-    // ─── 2. Telegram channels (from in-memory store) ───
-    const tgChannels = getTgChannels();
+    // ─── 2. Telegram channels (from persistent Blob store) ───
+    const tgChannels = await getTgChannels();
     for (const ch of tgChannels) {
       channels.push({
         id: ch.id,

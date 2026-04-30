@@ -1,7 +1,7 @@
 // Webhook endpoint for Telegram Bot API
 // URL: /api/webhook/telegram
 import { NextRequest, NextResponse } from 'next/server';
-import { upsertChannel, addMessage } from '@/lib/telegram-store';
+import { upsertChannel, addMessage, flushToBlob } from '@/lib/telegram-store';
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
     const messageText = text || message.caption || '';
 
     // Upsert channel in store
-    const channel = upsertChannel({
+    const channel = await upsertChannel({
       chatId,
       chatType,
       name: channelName,
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Add message to store
-    addMessage({
+    await addMessage({
       channelId: channel.id,
       senderName,
       senderType: isFromBot ? 'operator' : 'client',
@@ -52,6 +52,14 @@ export async function POST(request: NextRequest) {
       externalId: `tg_${message.message_id}`,
       senderId: message.from?.id,
     });
+
+    // Force save immediately on webhook — await it so the serverless function
+    // doesn't shut down before the Blob write completes
+    try {
+      await flushToBlob();
+    } catch (e) {
+      console.error('[Telegram Webhook] Blob save failed:', e);
+    }
 
     console.log(`[Telegram Webhook] Saved message from ${senderName} in ${channelName}: ${messageText.substring(0, 50)}`);
 
@@ -65,7 +73,7 @@ export async function POST(request: NextRequest) {
 export async function GET() {
   // Health check
   const { getStoreStats } = await import('@/lib/telegram-store');
-  const stats = getStoreStats();
+  const stats = await getStoreStats();
   return NextResponse.json({
     status: 'telegram-webhook-active',
     store: stats,

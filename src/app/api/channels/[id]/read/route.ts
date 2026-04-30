@@ -1,4 +1,4 @@
-// Mark channel as read — clears unread counter
+// Mark channel as read — clears unread counter, NEVER deletes the chat
 import { NextRequest, NextResponse } from 'next/server';
 import { resetUnread } from '@/lib/telegram-store';
 import { markBitrixDialogRead } from '@/lib/bitrix';
@@ -13,7 +13,7 @@ export async function POST(
   try {
     // ─── Telegram channel ───
     if (id.startsWith('tg_')) {
-      resetUnread(id);
+      await resetUnread(id);
       return NextResponse.json({ ok: true, source: 'telegram' });
     }
 

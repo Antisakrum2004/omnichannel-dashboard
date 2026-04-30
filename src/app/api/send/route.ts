@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sendBitrixMessage } from '@/lib/bitrix';
 import { sendTelegramMessage } from '@/lib/telegram';
-import { addMessage, getChannel } from '@/lib/telegram-store';
+import { addMessage, getChannel, flushToBlob } from '@/lib/telegram-store';
 import { BITRIX_PORTALS } from '@/lib/sources';
 
 export async function POST(request: NextRequest) {
@@ -26,15 +26,17 @@ export async function POST(request: NextRequest) {
       sent = !!result;
       if (!sent) errorMessage = 'Не удалось отправить в Telegram';
 
-      // Save to in-memory store
+      // Save to persistent store
       if (sent) {
-        addMessage({
+        await addMessage({
           channelId,
           senderName: operatorId || 'Оператор',
           senderType: 'operator',
           text,
           externalId: `tg_sent_${Date.now()}`,
         });
+        // Force save since we just sent a message
+        flushToBlob().catch(() => {});
       }
     }
     // ─── Bitrix24 channel ───

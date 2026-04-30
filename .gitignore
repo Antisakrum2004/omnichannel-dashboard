@@ -10,3 +10,4 @@ db/*.db-journal
 dist/
 .vercel
 download/notion_page.json
+.env*.local

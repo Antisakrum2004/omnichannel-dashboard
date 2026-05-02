@@ -1,9 +1,9 @@
 // Mark channel as read — clears unread counter, NEVER deletes the chat
-// Supports ?user=andrey|vladimir query param
+// Reads webhook config from header for Bitrix24 operations
 import { NextRequest, NextResponse } from 'next/server';
 import { resetUnread } from '@/lib/telegram-store';
 import { markBitrixDialogRead } from '@/lib/bitrix';
-import { BITRIX_PORTALS } from '@/lib/sources';
+import { parseWebhookHeader } from '@/lib/webhook-config';
 
 export async function POST(
   request: NextRequest,
@@ -11,8 +11,9 @@ export async function POST(
 ) {
   const { id } = await params;
 
-  // Extract user slug from query params
-  const userSlug = request.nextUrl.searchParams.get('user') || undefined;
+  // Read webhook config from header
+  const webhookHeader = request.headers.get('X-Bitrix-Webhooks');
+  const webhookConfig = parseWebhookHeader(webhookHeader);
 
   try {
     // ─── Telegram channel ───
@@ -29,7 +30,7 @@ export async function POST(
 
       // Mark dialog as read in Bitrix24
       try {
-        await markBitrixDialogRead(portalKey, dialogId, userSlug);
+        await markBitrixDialogRead(portalKey, dialogId, webhookConfig);
       } catch (e) {
         console.error(`[Read API] Failed to mark ${portalKey} dialog as read:`, e);
       }

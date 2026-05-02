@@ -1,30 +1,35 @@
-// Sync Bitrix24 dialogs to our database
-// Called periodically or on demand
-// Supports ?user=andrey|vladimir query param
+// Sync Bitrix24 dialogs to our database - reads webhook config from header
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getBitrixDialogs, getBitrixMessages } from '@/lib/bitrix';
 import { BITRIX_PORTALS } from '@/lib/sources';
+import { parseWebhookHeader } from '@/lib/webhook-config';
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
   const portalKey = body.portal || 'bitrix1';
 
-  // Extract user slug from query params
-  const userSlug = request.nextUrl.searchParams.get('user') || undefined;
+  // Read webhook config from header
+  const webhookHeader = request.headers.get('X-Bitrix-Webhooks');
+  const webhookConfig = parseWebhookHeader(webhookHeader);
 
   const portal = BITRIX_PORTALS[portalKey as keyof typeof BITRIX_PORTALS];
   if (!portal) {
     return NextResponse.json({ error: 'Unknown portal' }, { status: 400 });
   }
 
+  // Check if this portal has a configured webhook
+  if (!webhookConfig?.[portalKey]?.webhookUrl?.trim()) {
+    return NextResponse.json({ error: `Portal ${portalKey} not configured` }, { status: 400 });
+  }
+
   try {
-    const dialogs = await getBitrixDialogs(portalKey, 50, userSlug);
+    const dialogs = await getBitrixDialogs(portalKey, 50, webhookConfig);
 
     if (!dialogs?.items) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'Failed to fetch dialogs',
-        portal: portalKey 
+        portal: portalKey
       }, { status: 500 });
     }
 
@@ -39,7 +44,6 @@ export async function POST(request: NextRequest) {
       const lastActivity = item.message?.date ? new Date(item.message.date) : null;
 
       try {
-        // Find or create channel
         let channel = await db.channel.findUnique({
           where: { source_externalId: { source: portalKey, externalId } },
         });
@@ -58,7 +62,7 @@ export async function POST(request: NextRequest) {
           synced++;
         } else {
           const hasNewMessage = lastActivity && lastActivity > channel.lastActivity!;
-          
+
           await db.channel.update({
             where: { id: channel.id },
             data: {
@@ -70,12 +74,11 @@ export async function POST(request: NextRequest) {
           });
           updated++;
 
-          // Fetch new messages if there's activity
           if (hasNewMessage) {
             try {
               const dialogId = item.id?.toString?.() || `chat${item.chat_id}`;
-              const messages = await getBitrixMessages(portalKey, dialogId, 5, userSlug);
-              
+              const messages = await getBitrixMessages(portalKey, dialogId, 5, webhookConfig);
+
               if (messages?.messages) {
                 for (const msg of messages.messages) {
                   const msgExternalId = `bx_${msg.id}`;
@@ -85,12 +88,10 @@ export async function POST(request: NextRequest) {
 
                   if (!existing) {
                     const author = messages.users?.find((u: any) => u.id === msg.author_id);
-                    const senderName = author?.name || `User ${msg.author_id}`;
-
                     await db.message.create({
                       data: {
                         channelId: channel.id,
-                        senderName,
+                        senderName: author?.name || `User ${msg.author_id}`,
                         senderType: msg.author_id === 0 ? 'system' : 'client',
                         text: msg.text || '',
                         timestamp: new Date(msg.date),
@@ -108,7 +109,6 @@ export async function POST(request: NextRequest) {
           }
         }
       } catch (e) {
-        // Skip this channel if create/update fails
         console.error(`[Sync] Error with channel ${externalId}:`, e);
       }
     }
@@ -130,11 +130,10 @@ export async function POST(request: NextRequest) {
 
 // GET for health check
 export async function GET() {
-  // Try DB connection
   let dbStatus = 'unknown';
   let channelCount = 0;
   let messageCount = 0;
-  
+
   try {
     channelCount = await db.channel.count();
     messageCount = await db.message.count();

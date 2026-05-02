@@ -1,8 +1,7 @@
-// Get messages for a specific channel - supports Bitrix API and Telegram persistent store
-// Supports ?user=andrey|vladimir query param for per-user sender detection
+// Get messages for a specific channel - reads webhook config from header
 import { NextRequest, NextResponse } from 'next/server';
 import { getBitrixMessages, getBitrixTaskComments, getWebhookUserId } from '@/lib/bitrix';
-import { BITRIX_PORTALS, DASHBOARD_USERS } from '@/lib/sources';
+import { parseWebhookHeader } from '@/lib/webhook-config';
 import { getMessages as getTgMessages, resetUnread } from '@/lib/telegram-store';
 
 export async function GET(
@@ -11,8 +10,9 @@ export async function GET(
 ) {
   const { id } = await params;
 
-  // Extract user slug from query params
-  const userSlug = request.nextUrl.searchParams.get('user') || undefined;
+  // Read webhook config from header
+  const webhookHeader = request.headers.get('X-Bitrix-Webhooks');
+  const webhookConfig = parseWebhookHeader(webhookHeader);
 
   try {
     // ─── Telegram channel ───
@@ -23,76 +23,37 @@ export async function GET(
     }
 
     // ─── Bitrix24 task channel ───
-    // Format: bx_bitrix1_task_123 or bx_bitrix2_task_456
     const taskMatch = id.match(/^bx_(bitrix\d+)_task_(\d+)$/);
     if (taskMatch) {
       const portalKey = taskMatch[1];
       const taskId = taskMatch[2];
-      // Use user-specific webhookUserId for sender detection
-      const webhookUserId = getWebhookUserId(userSlug, portalKey);
+      const webhookUserId = getWebhookUserId(webhookConfig, portalKey);
 
       try {
-        const result = await getBitrixTaskComments(portalKey, taskId, userSlug);
+        const result = await getBitrixTaskComments(portalKey, taskId, webhookConfig);
         if (result && Array.isArray(result)) {
           const messages = result.map((comment: any) => {
-            const authorName = comment.AUTHOR_NAME || comment.authorName || `User ${comment.AUTHOR_ID || comment.authorId}`;
             const authorId = comment.AUTHOR_ID || comment.authorId || 0;
             const senderType = authorId === 0
               ? 'system'
-              : (webhookUserId && authorId === webhookUserId)
-                ? 'operator'
-                : 'client';
-            const text = comment.POST_MESSAGE || comment.postMessage || '';
-            const timestamp = comment.POST_DATE || comment.postDate || new Date().toISOString();
+              : (webhookUserId && authorId === webhookUserId) ? 'operator' : 'client';
 
             return {
               id: `bx_task_c_${comment.ID || comment.id}`,
               channelId: id,
-              senderName: authorName,
+              senderName: comment.AUTHOR_NAME || comment.authorName || `User ${authorId}`,
               senderType,
               senderId: authorId,
               senderAvatar: null,
-              text,
-              timestamp: new Date(timestamp).toISOString(),
+              text: comment.POST_MESSAGE || comment.postMessage || '',
+              timestamp: new Date(comment.POST_DATE || comment.postDate || new Date().toISOString()).toISOString(),
               isRead: true,
               operatorId: null,
               externalId: `bx_task_c_${comment.ID || comment.id}`,
             };
           });
-
           return NextResponse.json(messages);
         }
-        // If result has nested structure
-        if (result?.result && Array.isArray(result.result)) {
-          const messages = result.result.map((comment: any) => {
-            const authorName = comment.AUTHOR_NAME || comment.authorName || `User ${comment.AUTHOR_ID || comment.authorId}`;
-            const authorId = comment.AUTHOR_ID || comment.authorId || 0;
-            const senderType = authorId === 0
-              ? 'system'
-              : (webhookUserId && authorId === webhookUserId)
-                ? 'operator'
-                : 'client';
-            const text = comment.POST_MESSAGE || comment.postMessage || '';
-            const timestamp = comment.POST_DATE || comment.postDate || new Date().toISOString();
-
-            return {
-              id: `bx_task_c_${comment.ID || comment.id}`,
-              channelId: id,
-              senderName: authorName,
-              senderType,
-              senderId: authorId,
-              senderAvatar: null,
-              text,
-              timestamp: new Date(timestamp).toISOString(),
-              isRead: true,
-              operatorId: null,
-              externalId: `bx_task_c_${comment.ID || comment.id}`,
-            };
-          });
-
-          return NextResponse.json(messages);
-        }
-
         return NextResponse.json([]);
       } catch (e) {
         console.error(`[Messages API] Failed to fetch task comments from ${portalKey}:`, e);
@@ -105,47 +66,32 @@ export async function GET(
     if (bitrixMatch) {
       const portalKey = bitrixMatch[1];
       const dialogPart = bitrixMatch[2];
-
-      // Use user-specific webhookUserId for sender detection
-      const webhookUserId = getWebhookUserId(userSlug, portalKey);
-
+      const webhookUserId = getWebhookUserId(webhookConfig, portalKey);
       let dialogId = dialogPart;
-      if (!isNaN(Number(dialogPart))) {
-        dialogId = dialogPart;
-      }
+      if (!isNaN(Number(dialogPart))) dialogId = dialogPart;
 
       try {
-        const result = await getBitrixMessages(portalKey, dialogId, 30, userSlug);
+        const result = await getBitrixMessages(portalKey, dialogId, 30, webhookConfig);
         if (result?.messages) {
           const filesLookup: Record<number, any> = {};
           if (Array.isArray(result.files)) {
-            for (const f of result.files) {
-              filesLookup[f.id] = f;
-            }
+            for (const f of result.files) filesLookup[f.id] = f;
           }
 
           const messages = result.messages.map((msg: any) => {
             const author = result.users?.find((u: any) => u.id === msg.author_id);
             const senderType = msg.author_id === 0
               ? 'system'
-              : (webhookUserId && msg.author_id === webhookUserId)
-                ? 'operator'
-                : 'client';
+              : (webhookUserId && msg.author_id === webhookUserId) ? 'operator' : 'client';
 
             const fileIds: number[] = msg.params?.FILE_ID || [];
             const msgFiles = fileIds
               .map((fid: number) => {
                 const f = filesLookup[fid];
                 if (!f) return null;
-                return {
-                  id: f.id,
-                  type: f.type || 'file',
-                  name: f.name || `file_${fid}`,
-                  urlPreview: f.urlPreview || f.urlShow || '',
-                  urlShow: f.urlShow || '',
-                  urlDownload: f.urlDownload || '',
-                  image: f.image || undefined,
-                };
+                return { id: f.id, type: f.type || 'file', name: f.name || `file_${fid}`,
+                  urlPreview: f.urlPreview || f.urlShow || '', urlShow: f.urlShow || '',
+                  urlDownload: f.urlDownload || '', image: f.image || undefined };
               })
               .filter(Boolean);
 

@@ -9,8 +9,6 @@ export function normalizeTelegramMessage(payload: any): NormalizedMessage | null
   const chatId = String(message.chat.id);
   const isGroup = message.chat.type === 'group' || message.chat.type === 'supergroup';
   const channelName = isGroup ? message.chat.title : `${message.chat.first_name || ''} ${message.chat.last_name || ''}`.trim();
-
-  // Check if message is from our bot (outgoing)
   const isFromBot = message.from?.is_bot === true;
 
   return {
@@ -38,7 +36,7 @@ export function normalizeBitrixMessage(portalKey: string, payload: any): Normali
   return {
     source: portalKey,
     channelExternalId: `bx_${portalKey}_${dialogId}`,
-    channelName: undefined, // Will be fetched from Bitrix API
+    channelName: undefined,
     senderName: userId ? `User ${userId}` : 'System',
     senderType: userId ? 'client' : 'system',
     text: messageText,
@@ -55,7 +53,6 @@ export function normalizeMaxMessage(payload: any): NormalizedMessage | null {
   if (!msg) return null;
 
   const chatId = String(msg.recipient?.chat_id || msg.sender?.user_id);
-  const isGroup = msg.recipient?.chat_type === 'chat';
 
   return {
     source: 'max',
@@ -72,14 +69,11 @@ export function normalizeMaxMessage(payload: any): NormalizedMessage | null {
 // ─── Unified normalize function ───
 export function normalizeMessage(source: string, payload: any): NormalizedMessage | null {
   switch (source) {
-    case 'telegram':
-      return normalizeTelegramMessage(payload);
+    case 'telegram': return normalizeTelegramMessage(payload);
     case 'bitrix1':
     case 'bitrix2':
-    case 'bitrix3':
-      return normalizeBitrixMessage(source, payload);
-    case 'max':
-      return normalizeMaxMessage(payload);
+    case 'bitrix3': return normalizeBitrixMessage(source, payload);
+    case 'max': return normalizeMaxMessage(payload);
     default:
       console.warn(`Unknown source: ${source}`);
       return null;

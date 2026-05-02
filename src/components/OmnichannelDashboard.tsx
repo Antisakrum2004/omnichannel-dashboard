@@ -1,6 +1,14 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import {
+  getWebhookConfig,
+  serializeWebhookHeader,
+  extractWebhookUserId,
+  WebhookConfig,
+  WEBHOOK_HEADER,
+} from '@/lib/webhook-config';
+import { BITRIX_PORTALS } from '@/lib/sources';
 
 // ─── Types ───
 interface Channel {
@@ -42,7 +50,7 @@ interface MessageFile {
 }
 
 // ─── Version ───
-const APP_VERSION = 'v4.0';
+const APP_VERSION = 'v5.0';
 
 // ─── Source Config ───
 const SOURCES: Record<string, { label: string; name: string; color: string; bg: string; icon: string }> = {
@@ -54,8 +62,6 @@ const SOURCES: Record<string, { label: string; name: string; color: string; bg: 
   whatsapp: { label: 'WA',  name: 'WhatsApp',             color: '#25D366', bg: '#1a3d24', icon: '📱' },
 };
 
-const SOURCE_ORDER = ['bitrix1', 'bitrix2', 'bitrix3', 'telegram', 'max', 'whatsapp'];
-
 // ─── Tab definitions ───
 const TABS = [
   { id: 'bitrix1', label: 'АтиЛаб' },
@@ -66,10 +72,24 @@ const TABS = [
   { id: 'whatsapp', label: 'WA' },
 ];
 
-// ─── SVG Icon Components (Modern Flat UI) ───
+// ─── API Fetch Helper ───
+// Adds webhook config header to all API calls
+function getWebhookHeaders(): Record<string, string> {
+  const config = getWebhookConfig();
+  return { [WEBHOOK_HEADER]: serializeWebhookHeader(config) };
+}
+
+async function apiFetch(url: string, options: RequestInit = {}): Promise<Response> {
+  const headers = {
+    ...(options.headers || {}),
+    ...getWebhookHeaders(),
+  };
+  return fetch(url, { ...options, headers });
+}
+
+// ─── SVG Icon Components ───
 
 function FilterIcon({ size = 20 }: { size?: number }) {
-  // Horizontal filter icon: two parallel lines with small circular toggles
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
       <line x1="4" y1="8" x2="20" y2="8" />
@@ -90,7 +110,6 @@ function SearchIcon({ size = 20 }: { size?: number }) {
 }
 
 function ComposeIcon({ size = 20 }: { size?: number }) {
-  // Pencil inside a square/note — compose message icon
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <rect x="3" y="3" width="18" height="18" rx="3" />
@@ -100,8 +119,6 @@ function ComposeIcon({ size = 20 }: { size?: number }) {
     </svg>
   );
 }
-
-// (ChevronIcon removed — no longer needed with tab navigation)
 
 // ─── UI Components ───
 
@@ -148,7 +165,6 @@ function ChatListItem({
       }`}
       onClick={onClick}
     >
-      {/* Avatar with unread dot */}
       <div className="relative flex-shrink-0">
         {channel.avatarUrl ? (
           <img
@@ -189,23 +205,11 @@ function ChatListItem({
   );
 }
 
-// Subtle muted colors
 const MSG_STYLE = {
-  incoming: {
-    bubble: '#1c2533',
-    name: '#8899aa',
-    text: '#c8d1db',
-    time: '#5a6a7a',
-  },
-  outgoing: {
-    bubble: '#162d24',
-    name: '#5ab877',
-    text: '#c8d1db',
-    time: '#3a7a5a',
-  },
+  incoming: { bubble: '#1c2533', name: '#8899aa', text: '#c8d1db', time: '#5a6a7a' },
+  outgoing: { bubble: '#162d24', name: '#5ab877', text: '#c8d1db', time: '#3a7a5a' },
 };
 
-// ─── Avatar color from name hash ───
 const AVATAR_COLORS = [
   '#c0392b', '#e67e22', '#f39c12', '#27ae60', '#2980b9',
   '#8e44ad', '#d35400', '#16a085', '#2c3e50', '#c0392b',
@@ -222,76 +226,43 @@ function getAvatarColor(name: string): string {
 
 function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/);
-  if (parts.length >= 2) {
-    return (parts[0][0] + parts[1][0]).toUpperCase();
-  }
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
   return name.slice(0, 2).toUpperCase();
 }
 
 function SenderAvatar({ name, avatarUrl, size = 32 }: { name: string; avatarUrl?: string | null; size?: number }) {
   const color = getAvatarColor(name);
   const initials = getInitials(name);
-
   if (avatarUrl) {
     return (
-      <img
-        src={avatarUrl}
-        alt={name}
-        className="rounded-full object-cover flex-shrink-0"
+      <img src={avatarUrl} alt={name} className="rounded-full object-cover flex-shrink-0"
         style={{ width: size, height: size }}
-        onError={(e) => {
-          (e.target as HTMLImageElement).style.display = 'none';
-          const parent = (e.target as HTMLImageElement).parentElement;
-          if (parent) {
-            const fallback = parent.querySelector('.avatar-fallback') as HTMLElement;
-            if (fallback) fallback.style.display = 'flex';
-          }
-        }}
+        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
       />
     );
   }
-
   return (
-    <div
-      className="rounded-full flex items-center justify-center text-white font-bold flex-shrink-0"
-      style={{
-        width: size,
-        height: size,
-        background: color,
-        fontSize: size * 0.35,
-      }}
-    >
+    <div className="rounded-full flex items-center justify-center text-white font-bold flex-shrink-0"
+      style={{ width: size, height: size, background: color, fontSize: size * 0.35 }}>
       {initials}
     </div>
   );
 }
 
-// ─── Rich text: clickable links ───
 function RichText({ text }: { text: string }) {
   const parts: (string | { url: string; label: string })[] = [];
   const regex = /\[URL=([^\]]+)\]([^\[]+)\[\/URL\]|\[URL\]([^\[]+)\[\/URL\]|(\bhttps?:\/\/[^\s\[\]<>"')\]]+)/gi;
   let lastIndex = 0;
   let match;
-  
   while ((match = regex.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      parts.push(text.slice(lastIndex, match.index));
-    }
-    if (match[1] && match[2]) {
-      parts.push({ url: match[1], label: match[2] });
-    } else if (match[3]) {
-      parts.push({ url: match[3], label: match[3] });
-    } else if (match[4]) {
-      parts.push({ url: match[4], label: match[4] });
-    }
+    if (match.index > lastIndex) parts.push(text.slice(lastIndex, match.index));
+    if (match[1] && match[2]) parts.push({ url: match[1], label: match[2] });
+    else if (match[3]) parts.push({ url: match[3], label: match[3] });
+    else if (match[4]) parts.push({ url: match[4], label: match[4] });
     lastIndex = match.index + match[0].length;
   }
-  if (lastIndex < text.length) {
-    parts.push(text.slice(lastIndex));
-  }
-  if (parts.length === 0) {
-    return <>{text}</>;
-  }
+  if (lastIndex < text.length) parts.push(text.slice(lastIndex));
+  if (parts.length === 0) return <>{text}</>;
   return (
     <>
       {parts.map((part, i) => {
@@ -299,76 +270,42 @@ function RichText({ text }: { text: string }) {
           const cleaned = part.replace(/\[USER=\d+\]([^\[]+)\[\/USER\]/gi, '$1');
           return <span key={i}>{cleaned}</span>;
         }
-        return (
-          <a
-            key={i}
-            href={part.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-400 hover:text-blue-300 underline decoration-blue-400/50 hover:decoration-blue-300 transition-colors"
-          >
-            {part.label}
-          </a>
-        );
+        return <a key={i} href={part.url} target="_blank" rel="noopener noreferrer"
+          className="text-blue-400 hover:text-blue-300 underline decoration-blue-400/50 hover:decoration-blue-300 transition-colors">
+          {part.label}
+        </a>;
       })}
     </>
   );
 }
 
 function MessageBubble({ msg, showName, currentUserName }: { msg: Message; showName: boolean; currentUserName: string }) {
-  const isMe = msg.senderType === 'operator' || 
+  const isMe = msg.senderType === 'operator' ||
     (currentUserName && msg.senderName.toLowerCase().trim() === currentUserName.toLowerCase().trim());
-  const time = new Date(msg.timestamp).toLocaleTimeString('ru-RU', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  const time = new Date(msg.timestamp).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
   const s = isMe ? MSG_STYLE.outgoing : MSG_STYLE.incoming;
 
   return (
     <div className="flex gap-2 justify-start mb-2">
       <div className="flex-shrink-0 pt-0.5">
-        {showName ? (
-          <SenderAvatar name={msg.senderName} avatarUrl={msg.senderAvatar} size={32} />
-        ) : (
-          <div style={{ width: 32 }} />
-        )}
+        {showName ? <SenderAvatar name={msg.senderName} avatarUrl={msg.senderAvatar} size={32} /> : <div style={{ width: 32 }} />}
       </div>
-      <div
-        className="max-w-[70%] px-3.5 py-2 rounded-[4px_16px_16px_16px]"
-        style={{ background: s.bubble }}
-      >
-        {showName && (
-          <div className="text-xs font-medium mb-0.5" style={{ color: s.name }}>
-            {msg.senderName}
-          </div>
-        )}
-        {msg.text && (
-          <div className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: s.text }}>
-            <RichText text={msg.text} />
-          </div>
-        )}
+      <div className="max-w-[70%] px-3.5 py-2 rounded-[4px_16px_16px_16px]" style={{ background: s.bubble }}>
+        {showName && <div className="text-xs font-medium mb-0.5" style={{ color: s.name }}>{msg.senderName}</div>}
+        {msg.text && <div className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: s.text }}><RichText text={msg.text} /></div>}
         {msg.files && msg.files.length > 0 && (
           <div className="flex flex-col gap-1.5 mt-1.5">
             {msg.files.map((file) => (
               <a key={file.id} href={file.urlDownload} target="_blank" rel="noopener noreferrer">
-                <img
-                  src={file.urlPreview}
-                  alt={file.name}
-                  className="max-w-full rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
-                  style={{ maxHeight: 240 }}
-                  loading="lazy"
-                />
+                <img src={file.urlPreview} alt={file.name} className="max-w-full rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                  style={{ maxHeight: 240 }} loading="lazy" />
               </a>
             ))}
           </div>
         )}
         <div className="text-[10px] mt-0.5 text-right flex items-center justify-end gap-1" style={{ color: s.time }}>
           <span>{time}</span>
-          {isMe && (
-            <span style={{ color: msg.isRead ? '#4fc3f7' : s.time, fontSize: '10px' }}>
-              {msg.isRead ? '✓✓' : '✓'}
-            </span>
-          )}
+          {isMe && <span style={{ color: msg.isRead ? '#4fc3f7' : s.time, fontSize: '10px' }}>{msg.isRead ? '✓✓' : '✓'}</span>}
         </div>
       </div>
     </div>
@@ -380,40 +317,25 @@ function formatTime(dateStr: string): string {
   if (!dateStr) return '';
   const d = new Date(dateStr);
   const now = new Date();
-  const diffMs = now.getTime() - d.getTime();
-  const diffDays = Math.floor(diffMs / 86400000);
-  if (diffDays === 0) {
-    return d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-  } else if (diffDays === 1) {
-    return 'Вчера';
-  } else if (diffDays < 7) {
-    return `${diffDays} дн. назад`;
-  } else {
-    return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
-  }
+  const diffDays = Math.floor((now.getTime() - d.getTime()) / 86400000);
+  if (diffDays === 0) return d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+  if (diffDays === 1) return 'Вчера';
+  if (diffDays < 7) return `${diffDays} дн. назад`;
+  return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
 }
 
 function formatTimeFull(dateStr: string): string {
   if (!dateStr) return '';
-  const d = new Date(dateStr);
-  return d.toLocaleString('ru-RU', {
-    day: '2-digit', month: '2-digit', year: '2-digit',
-    hour: '2-digit', minute: '2-digit',
-  });
+  return new Date(dateStr).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
-// (groupChannels removed — replaced by tab-based filtering)
-
 function getBitrixDomain(source: string): string | null {
-  switch (source) {
-    case 'bitrix1': return '1c-cms.bitrix24.ru';
-    case 'bitrix2': return 'dakar.bitrix24.ru';
-    default: return null;
-  }
+  const portal = BITRIX_PORTALS[source as keyof typeof BITRIX_PORTALS];
+  return portal?.domain || null;
 }
 
 // ─── Main App ───
-export default function OmnichannelDashboard({ userSlug }: { userSlug: string }) {
+export default function OmnichannelDashboard({ onDisconnect }: { onDisconnect: () => void }) {
   const [channels, setChannels] = useState<Channel[]>([]);
   const [activeChannelId, setActiveChannelId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -433,29 +355,20 @@ export default function OmnichannelDashboard({ userSlug }: { userSlug: string })
       }
     });
   }, []);
-  
-  // Get user name from DASHBOARD_USERS config based on slug
-  const [currentUserName, setCurrentUserName] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      // Import user names mapping
-      const userNames: Record<string, string> = { andrey: 'Андрей', vladimir: 'Владимир Макаров' };
-      return userNames[userSlug] || '';
-    }
-    return '';
-  });
-  const [userNameInput, setUserNameInput] = useState<string>(currentUserName);
-  const [showNameSelector, setShowNameSelector] = useState(false);
-  
+
+  // Get operator name from webhook user ID
+  const [currentUserName, setCurrentUserName] = useState<string>('');
+
   // Tab navigation state
   const [activeTab, setActiveTab] = useState('bitrix1');
-  const [tabDirection, setTabDirection] = useState(0); // +1 = right, -1 = left
+  const [tabDirection, setTabDirection] = useState(0);
   const [isSliding, setIsSliding] = useState(false);
 
   // Tab rename state
   const [renamingTab, setRenamingTab] = useState<string | null>(null);
   const [renameInput, setRenameInput] = useState('');
 
-  // Custom source names — persist in localStorage
+  // Custom source names
   const [customSourceNames, setCustomSourceNames] = useState<Record<string, string>>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('omnichannel_source_names');
@@ -464,11 +377,8 @@ export default function OmnichannelDashboard({ userSlug }: { userSlug: string })
     return {};
   });
 
-
-  // Persist custom source names
   useEffect(() => {
-    localStorage.setItem('omnichannel_user_slug', userSlug);
-  localStorage.setItem('omnichannel_source_names', JSON.stringify(customSourceNames));
+    localStorage.setItem('omnichannel_source_names', JSON.stringify(customSourceNames));
   }, [customSourceNames]);
 
   const renameSource = (sourceKey: string, newName: string) => {
@@ -483,50 +393,28 @@ export default function OmnichannelDashboard({ userSlug }: { userSlug: string })
   };
 
   const handleRenameConfirm = () => {
-    if (renamingTab && renameInput.trim()) {
-      renameSource(renamingTab, renameInput.trim());
-    }
+    if (renamingTab && renameInput.trim()) renameSource(renamingTab, renameInput.trim());
     setRenamingTab(null);
     setRenameInput('');
   };
 
   const handleRenameKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleRenameConfirm();
-    } else if (e.key === 'Escape') {
-      setRenamingTab(null);
-      setRenameInput('');
-    }
+    if (e.key === 'Enter') handleRenameConfirm();
+    else if (e.key === 'Escape') { setRenamingTab(null); setRenameInput(''); }
   };
 
   // Modals
-  const [showAddChatModal, setShowAddChatModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [tgWebhookStatus, setTgWebhookStatus] = useState<string>('');
   const [tgWebhookLoading, setTgWebhookLoading] = useState(false);
 
-  // Escape key to close all modals
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setShowAddChatModal(false);
-        setShowSettingsModal(false);
-        setShowNameSelector(false);
-      }
+      if (e.key === 'Escape') setShowSettingsModal(false);
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
-
-  // Load user name from config (no need for localStorage selector)
-  useEffect(() => {
-    const userNames: Record<string, string> = { andrey: 'Андрей', vladimir: 'Владимир Макаров' };
-    const name = userNames[userSlug] || '';
-    if (name) {
-      setCurrentUserName(name);
-      setUserNameInput(name);
-    }
-  }, [userSlug]);
 
   const switchTab = (newTabId: string) => {
     if (newTabId === activeTab || isSliding) return;
@@ -538,9 +426,7 @@ export default function OmnichannelDashboard({ userSlug }: { userSlug: string })
     setTimeout(() => setIsSliding(false), 350);
   };
 
-  // Track last-seen activity per channel — for detecting NEW messages
-  // Bitrix24 webhook user always sees counter=0, so we detect new messages
-  // by comparing lastActivity timestamps
+  // Last-seen activity tracking
   const [lastSeenActivity, setLastSeenActivity] = useState<Record<string, string>>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('omnichannel_last_seen');
@@ -549,21 +435,14 @@ export default function OmnichannelDashboard({ userSlug }: { userSlug: string })
     return {};
   });
 
-  // Compute effective unread for each channel (client-side detection)
   const getEffectiveUnread = useCallback((channel: Channel): number => {
-    // Telegram uses server-side unreadCount (from webhook)
     if (channel.source === 'telegram') return channel.unreadCount;
-    // Bitrix24: webhook user always has counter=0, so detect by lastActivity
     const seen = lastSeenActivity[channel.id];
-    if (!seen) return 0; // First time seeing this channel — don't show as unread
-    const seenTime = new Date(seen).getTime();
-    const activityTime = new Date(channel.lastActivity).getTime();
-    return activityTime > seenTime ? 1 : 0;
+    if (!seen) return 0;
+    return new Date(channel.lastActivity).getTime() > new Date(seen).getTime() ? 1 : 0;
   }, [lastSeenActivity]);
 
-  // Mark channel as read (optimistic + server)
   const markChannelRead = useCallback(async (channelId: string) => {
-    // Optimistic: update lastSeenActivity so red dot disappears
     const channel = channels.find(c => c.id === channelId);
     if (channel) {
       setLastSeenActivity(prev => {
@@ -572,44 +451,31 @@ export default function OmnichannelDashboard({ userSlug }: { userSlug: string })
         return next;
       });
     }
-    // Also clear Telegram server-side unread
     if (channelId.startsWith('tg_')) {
-      setChannels(prev => prev.map(ch =>
-        ch.id === channelId ? { ...ch, unreadCount: 0 } : ch
-      ));
-      try {
-        await fetch(`/api/channels/${channelId}/read?user=${userSlug}`, { method: 'POST' });
-      } catch (e) { /* ignore */ }
+      setChannels(prev => prev.map(ch => ch.id === channelId ? { ...ch, unreadCount: 0 } : ch));
+      try { await apiFetch(`/api/channels/${channelId}/read`, { method: 'POST' }); } catch (e) { /* ignore */ }
     }
   }, [channels]);
 
-  // Handle channel click — select + mark as read
   const handleChannelClick = useCallback((channelId: string) => {
     setActiveChannelId(channelId);
     markChannelRead(channelId);
   }, [markChannelRead]);
 
-  // Fetch channels
+  // Fetch channels — uses webhook header
   const fetchChannels = useCallback(async () => {
     try {
-      const res = await fetch(`/api/channels?user=${userSlug}`);
+      const res = await apiFetch('/api/channels');
       if (res.ok) {
         const data = await res.json();
         setChannels(data);
-        // On first load, initialize lastSeenActivity for all channels
-        // so they don't all appear as "unread"
         setLastSeenActivity(prev => {
           let changed = false;
           const next = { ...prev };
           for (const ch of data) {
-            if (!next[ch.id]) {
-              next[ch.id] = ch.lastActivity;
-              changed = true;
-            }
+            if (!next[ch.id]) { next[ch.id] = ch.lastActivity; changed = true; }
           }
-          if (changed) {
-            localStorage.setItem('omnichannel_last_seen', JSON.stringify(next));
-          }
+          if (changed) localStorage.setItem('omnichannel_last_seen', JSON.stringify(next));
           return changed ? next : prev;
         });
       }
@@ -620,10 +486,10 @@ export default function OmnichannelDashboard({ userSlug }: { userSlug: string })
     }
   }, []);
 
-  // Fetch messages
+  // Fetch messages — uses webhook header
   const fetchMessages = useCallback(async (channelId: string) => {
     try {
-      const res = await fetch(`/api/channels/${channelId}?limit=50&user=${userSlug}`);
+      const res = await apiFetch(`/api/channels/${channelId}?limit=50`);
       if (res.ok) {
         const data = await res.json();
         setMessages(data);
@@ -633,11 +499,11 @@ export default function OmnichannelDashboard({ userSlug }: { userSlug: string })
     }
   }, []);
 
-  // Sync
+  // Sync — uses webhook header
   const syncBitrix = useCallback(async (portal: string) => {
     setSyncing(true);
     try {
-      await fetch(`/api/sync?user=${userSlug}`, {
+      await apiFetch('/api/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ portal }),
@@ -653,8 +519,8 @@ export default function OmnichannelDashboard({ userSlug }: { userSlug: string })
   const syncAll = useCallback(async () => {
     setSyncing(true);
     try {
-      await fetch(`/api/sync?user=${userSlug}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ portal: 'bitrix1' }) });
-      await fetch(`/api/sync?user=${userSlug}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ portal: 'bitrix2' }) });
+      await apiFetch('/api/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ portal: 'bitrix1' }) });
+      await apiFetch('/api/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ portal: 'bitrix2' }) });
       await fetchChannels();
     } catch (e) {
       console.error('Sync all failed:', e);
@@ -663,8 +529,7 @@ export default function OmnichannelDashboard({ userSlug }: { userSlug: string })
     }
   }, [fetchChannels]);
 
-  // Auto-polling: refresh channels every 5 seconds, messages every 3 seconds
-  // Track unread changes for notification sound
+  // Auto-polling
   const prevTotalUnreadRef = useRef(0);
 
   useEffect(() => {
@@ -673,11 +538,10 @@ export default function OmnichannelDashboard({ userSlug }: { userSlug: string })
     return () => clearInterval(interval);
   }, [fetchChannels]);
 
-  // Play notification sound when new unread messages appear
+  // Notification sound
   useEffect(() => {
     const totalUnread = channels.reduce((s, c) => s + getEffectiveUnread(c), 0);
     if (totalUnread > prevTotalUnreadRef.current && prevTotalUnreadRef.current >= 0) {
-      // New messages arrived — play subtle notification
       try {
         const ctx = new AudioContext();
         const osc = ctx.createOscillator();
@@ -689,9 +553,7 @@ export default function OmnichannelDashboard({ userSlug }: { userSlug: string })
         osc.start();
         osc.stop(ctx.currentTime + 0.1);
         setTimeout(() => ctx.close(), 200);
-      } catch (e) {
-        // Audio not available — ignore
-      }
+      } catch (e) { /* ignore */ }
     }
     prevTotalUnreadRef.current = totalUnread;
   }, [channels, getEffectiveUnread]);
@@ -707,12 +569,12 @@ export default function OmnichannelDashboard({ userSlug }: { userSlug: string })
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Send message
+  // Send message — uses webhook header
   const handleSend = async () => {
     if (!inputText.trim() || !activeChannelId) return;
     setSending(true);
     try {
-      const res = await fetch(`/api/send?user=${userSlug}`, {
+      const res = await apiFetch('/api/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ channelId: activeChannelId, text: inputText.trim(), operatorId: currentUserName || undefined }),
@@ -737,7 +599,7 @@ export default function OmnichannelDashboard({ userSlug }: { userSlug: string })
     setTgWebhookLoading(true);
     setTgWebhookStatus('');
     try {
-      const res = await fetch('/api/telegram/setup', {
+      const res = await apiFetch('/api/telegram/setup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: 'https://my-project-eta-lemon.vercel.app' }),
@@ -753,7 +615,7 @@ export default function OmnichannelDashboard({ userSlug }: { userSlug: string })
 
   const checkTgWebhook = async () => {
     try {
-      const res = await fetch('/api/telegram/setup');
+      const res = await apiFetch('/api/telegram/setup');
       const data = await res.json();
       setTgWebhookStatus(data.webhookInfo?.url ? `Webhook: ${data.webhookInfo.url}` : 'Webhook не настроен');
     } catch (e) {
@@ -761,13 +623,12 @@ export default function OmnichannelDashboard({ userSlug }: { userSlug: string })
     }
   };
 
-  // Fetch Telegram history
   const [tgFetching, setTgFetching] = useState(false);
   const fetchTelegramHistory = async () => {
     setTgFetching(true);
     setTgWebhookStatus('Загрузка истории ТГ...');
     try {
-      const res = await fetch('/api/telegram/fetch-history', { method: 'POST' });
+      const res = await apiFetch('/api/telegram/fetch-history', { method: 'POST' });
       const data = await res.json();
       if (data.ok) {
         setTgWebhookStatus(`Загружено ${data.newMessages} сообщений из ${data.updatesProcessed} обновлений`);
@@ -782,6 +643,17 @@ export default function OmnichannelDashboard({ userSlug }: { userSlug: string })
     }
   };
 
+  // Determine which tabs to show based on configured webhooks
+  const webhookConfig = getWebhookConfig();
+  const configuredPortals = Object.keys(BITRIX_PORTALS).filter(key =>
+    webhookConfig?.[key]?.webhookUrl?.trim()
+  );
+
+  // Only show tabs for configured portals + telegram
+  const activeTabs = TABS.filter(tab =>
+    tab.id === 'telegram' || configuredPortals.includes(tab.id)
+  );
+
   const activeChannel = channels.find((c) => c.id === activeChannelId);
   const filteredChannels = searchQuery
     ? channels.filter((c) =>
@@ -790,71 +662,43 @@ export default function OmnichannelDashboard({ userSlug }: { userSlug: string })
       )
     : channels;
 
-  // Filter channels by active tab
   const tabFilteredChannels = filteredChannels.filter(c => c.source === activeTab);
-
   const totalUnread = channels.reduce((s, c) => s + getEffectiveUnread(c), 0);
   const uniqueSenders = messages.length > 0 ? [...new Set(messages.map(m => m.senderName))].length : 0;
 
   return (
     <div className="flex h-screen overflow-hidden">
-      {/* ─── LEFT PANEL: Channel List (320px) ─── */}
-      <div
-        className="w-[320px] flex-shrink-0 h-full flex flex-col border-r border-slate-800"
-        style={{ background: '#0d1117' }}
-      >
-        {/* ─── Header: Title + Version ─── */}
+      {/* ─── LEFT PANEL ─── */}
+      <div className="w-[320px] flex-shrink-0 h-full flex flex-col border-r border-slate-800" style={{ background: '#0d1117' }}>
         <div className="px-4 pt-4 pb-1">
           <h2 className="text-base font-bold">
             <span className="text-white">Omni</span>
             <span style={{ color: '#229ED9' }}>Channel</span>
             <span className="text-sm font-bold text-white/90 ml-1">{APP_VERSION}</span>
           </h2>
-          <div className="text-xs text-slate-500 mt-0.5">{currentUserName || userSlug} · Все чаты</div>
+          <div className="text-xs text-slate-500 mt-0.5">
+            {currentUserName ? `${currentUserName} · ` : ''}{channels.length} чатов
+          </div>
         </div>
 
-        {/* ─── Toolbar: Filter | Search | Compose ─── */}
+        {/* Toolbar */}
         <div className="px-4 py-2 flex items-center gap-2">
-          {/* Filter / Settings button */}
-          <button
-            onClick={() => setShowSettingsModal(true)}
+          <button onClick={() => setShowSettingsModal(true)}
             className="rounded-lg bg-slate-800/80 text-slate-400 flex items-center justify-center hover:bg-slate-700 hover:text-white transition-colors flex-shrink-0"
-            style={{ width: 25, height: 25 }}
-            title="Настройки дашборда"
-          >
+            style={{ width: 25, height: 25 }} title="Настройки">
             <FilterIcon size={18} />
           </button>
-
-          {/* Search input */}
           <div className="relative" style={{ width: 220 }}>
-            <div className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-500">
-              <SearchIcon size={13} />
-            </div>
-            <input
-              className="w-full bg-[#1e293b] border border-slate-700 rounded-lg text-slate-200 pl-7 pr-2 text-sm outline-none focus:border-blue-500 placeholder-slate-500"
-              style={{ height: 25, fontSize: 12 }}
-              placeholder="Поиск чатов..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+            <div className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-500"><SearchIcon size={13} /></div>
+            <input className="w-full bg-[#1e293b] border border-slate-700 rounded-lg text-slate-200 pl-7 pr-2 text-sm outline-none focus:border-blue-500 placeholder-slate-500"
+              style={{ height: 25, fontSize: 12 }} placeholder="Поиск чатов..."
+              value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
           </div>
-
-          {/* Add chat button — same style as settings button */}
-          <button
-            onClick={() => setShowAddChatModal(true)}
-            className="rounded-lg bg-slate-800/80 text-slate-400 flex items-center justify-center hover:bg-slate-700 hover:text-white transition-colors flex-shrink-0"
-            style={{ width: 25, height: 25 }}
-            title="Добавить чат"
-          >
-            <ComposeIcon size={18} />
-          </button>
         </div>
 
-
-
-        {/* ─── Tab Bar ─── */}
+        {/* Tab Bar */}
         <div className="flex gap-1 px-3 py-2 overflow-x-auto scrollbar-none" style={{ scrollbarWidth: 'none' }}>
-          {TABS.map(tab => {
+          {activeTabs.map(tab => {
             const tabChannels = channels.filter(c => c.source === tab.id);
             const tabUnread = tabChannels.reduce((s, c) => s + getEffectiveUnread(c), 0);
             const isActive = tab.id === activeTab;
@@ -862,31 +706,18 @@ export default function OmnichannelDashboard({ userSlug }: { userSlug: string })
             return (
               <div key={tab.id} className="relative">
                 {isRenaming ? (
-                  <input
-                    className="bg-slate-700 text-blue-300 rounded-full px-2 py-1 text-xs font-medium outline-none border border-blue-500/50 w-[70px]"
-                    value={renameInput}
-                    onChange={(e) => setRenameInput(e.target.value)}
-                    onBlur={handleRenameConfirm}
-                    onKeyDown={handleRenameKeyDown}
-                    autoFocus
-                    onClick={(e) => e.stopPropagation()}
-                  />
+                  <input className="bg-slate-700 text-blue-300 rounded-full px-2 py-1 text-xs font-medium outline-none border border-blue-500/50 w-[70px]"
+                    value={renameInput} onChange={(e) => setRenameInput(e.target.value)}
+                    onBlur={handleRenameConfirm} onKeyDown={handleRenameKeyDown} autoFocus onClick={(e) => e.stopPropagation()} />
                 ) : (
-                  <button
-                    onClick={() => switchTab(tab.id)}
-                    onDoubleClick={() => handleTabDoubleClick(tab.id)}
+                  <button onClick={() => switchTab(tab.id)} onDoubleClick={() => handleTabDoubleClick(tab.id)}
                     className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-200 ${
-                      isActive
-                        ? 'bg-[#1e3a5f] text-blue-300'
-                        : 'text-slate-400 hover:bg-slate-800'
-                    }`}
-                    title="Двойной клик для переименования"
-                  >
+                      isActive ? 'bg-[#1e3a5f] text-blue-300' : 'text-slate-400 hover:bg-slate-800'}`}
+                    title="Двойной клик для переименования">
                     {customSourceNames[tab.id] || tab.label}
                     {tabUnread > 0 && (
                       <span className={`rounded-full px-1.5 py-0 text-[10px] font-bold ${
-                        isActive ? 'bg-blue-500/30 text-blue-300' : 'bg-red-500/20 text-red-400'
-                      }`}>
+                        isActive ? 'bg-blue-500/30 text-blue-300' : 'bg-red-500/20 text-red-400'}`}>
                         {tabUnread > 99 ? '99+' : tabUnread}
                       </span>
                     )}
@@ -897,40 +728,25 @@ export default function OmnichannelDashboard({ userSlug }: { userSlug: string })
           })}
         </div>
 
-        {/* ─── Chat List with Slide Animation ─── */}
+        {/* Chat List */}
         <div className="flex-1 overflow-hidden relative">
-          <div
-            key={activeTab}
-            className="absolute inset-0 overflow-y-auto"
-            style={{
-              animation: isSliding
-                ? `slideIn${tabDirection > 0 ? 'Right' : 'Left'} 0.35s cubic-bezier(0.19, 1, 0.22, 1) forwards`
-                : 'none',
-            }}
-          >
+          <div key={activeTab} className="absolute inset-0 overflow-y-auto"
+            style={{ animation: isSliding ? `slideIn${tabDirection > 0 ? 'Right' : 'Left'} 0.35s cubic-bezier(0.19, 1, 0.22, 1) forwards` : 'none' }}>
             {loading ? (
               <div className="text-center text-slate-500 py-8 text-sm">Загрузка чатов...</div>
             ) : tabFilteredChannels.length === 0 ? (
               <div className="text-[11px] text-slate-600 px-4 py-4 italic">Нет чатов</div>
             ) : (
               tabFilteredChannels.map(ch => (
-                <ChatListItem
-                  key={ch.id}
-                  channel={ch}
-                  isActive={ch.id === activeChannelId}
-                  effectiveUnread={getEffectiveUnread(ch)}
-                  onClick={() => handleChannelClick(ch.id)}
-                />
+                <ChatListItem key={ch.id} channel={ch} isActive={ch.id === activeChannelId}
+                  effectiveUnread={getEffectiveUnread(ch)} onClick={() => handleChannelClick(ch.id)} />
               ))
             )}
           </div>
         </div>
 
-        {/* Footer stats */}
         <div className="px-4 py-3 border-t border-slate-800 text-center">
-          <div className="text-[11px] text-slate-600">
-            {channels.length} чатов · {totalUnread} непрочитанных
-          </div>
+          <div className="text-[11px] text-slate-600">{channels.length} чатов · {totalUnread} непрочитанных</div>
         </div>
       </div>
 
@@ -946,26 +762,10 @@ export default function OmnichannelDashboard({ userSlug }: { userSlug: string })
           </div>
         ) : (
           <>
-            {/* Header above chat */}
             <div className="border-b border-slate-800" style={{ background: '#0d1117' }}>
               <div className="flex items-center gap-3 px-5 py-2.5">
-                {/* Channel avatar */}
-                {activeChannel.avatarUrl ? (
-                  <img
-                    src={activeChannel.avatarUrl}
-                    alt={activeChannel.name}
-                    className="w-9 h-9 rounded-full object-cover flex-shrink-0"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = 'none';
-                      const fallback = (e.target as HTMLImageElement).nextElementSibling as HTMLElement;
-                      if (fallback) fallback.style.display = 'flex';
-                    }}
-                  />
-                ) : null}
-                <div
-                  className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${activeChannel.avatarUrl ? 'hidden' : ''}`}
-                  style={{ background: getAvatarColor(activeChannel.name), color: '#fff' }}
-                >
+                <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0"
+                  style={{ background: getAvatarColor(activeChannel.name), color: '#fff' }}>
                   {activeChannel.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -975,23 +775,15 @@ export default function OmnichannelDashboard({ userSlug }: { userSlug: string })
                   </div>
                   <div className="flex items-center gap-3 text-[11px] text-slate-500 mt-0.5">
                     <span>{messages.length} сообщ.</span>
-                    {getEffectiveUnread(activeChannel) > 0 && (
-                      <span className="text-red-400">{getEffectiveUnread(activeChannel)} непроч.</span>
-                    )}
+                    {getEffectiveUnread(activeChannel) > 0 && <span className="text-red-400">{getEffectiveUnread(activeChannel)} непроч.</span>}
                     <span>{uniqueSenders} участников</span>
-                    {activeChannel.lastActivity && (
-                      <span>· {formatTimeFull(activeChannel.lastActivity)}</span>
-                    )}
+                    {activeChannel.lastActivity && <span>· {formatTimeFull(activeChannel.lastActivity)}</span>}
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 flex-shrink-0">
                   {getBitrixDomain(activeChannel.source) && (
-                    <a
-                      href={`https://${getBitrixDomain(activeChannel.source)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[11px] text-slate-500 hover:text-blue-400 transition-colors px-2 py-1 rounded hover:bg-slate-800"
-                    >
+                    <a href={`https://${getBitrixDomain(activeChannel.source)}`} target="_blank" rel="noopener noreferrer"
+                      className="text-[11px] text-slate-500 hover:text-blue-400 transition-colors px-2 py-1 rounded hover:bg-slate-800">
                       Битрикс24 ↗
                     </a>
                   )}
@@ -999,7 +791,6 @@ export default function OmnichannelDashboard({ userSlug }: { userSlug: string })
               </div>
             </div>
 
-            {/* Messages */}
             <div className="flex-1 overflow-y-auto px-5 py-4">
               {messages.length === 0 ? (
                 <div className="text-center text-slate-500 py-8 text-sm">Нет сообщений в этом чате</div>
@@ -1013,30 +804,18 @@ export default function OmnichannelDashboard({ userSlug }: { userSlug: string })
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Input */}
             <div className="px-5 py-3 border-t border-slate-800" style={{ background: '#0d1117' }}>
               <div className="flex items-end gap-2 bg-[#1e293b] border border-slate-700 rounded-xl px-4 py-2 focus-within:border-blue-500 transition-colors">
-                <textarea
-                  ref={textareaRef}
+                <textarea ref={textareaRef}
                   className="flex-1 bg-transparent outline-none text-sm text-slate-200 placeholder-slate-500 resize-none min-h-[24px] max-h-[120px]"
-                  placeholder="Написать сообщение..."
-                  rows={1}
-                  value={inputText}
-                  onChange={(e) => {
-                    setInputText(e.target.value);
-                    autoResizeTextarea();
-                  }}
+                  placeholder="Написать сообщение..." rows={1} value={inputText}
+                  onChange={(e) => { setInputText(e.target.value); autoResizeTextarea(); }}
                   onInput={autoResizeTextarea}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); autoResizeTextarea(); }
-                  }}
-                  disabled={sending}
-                />
-                <button
-                  className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-lg px-4 py-1.5 text-sm font-medium transition-colors flex-shrink-0"
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); autoResizeTextarea(); } }}
+                  disabled={sending} />
+                <button className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-lg px-4 py-1.5 text-sm font-medium transition-colors flex-shrink-0"
                   onClick={() => { handleSend(); autoResizeTextarea(); }}
-                  disabled={sending || !inputText.trim()}
-                >
+                  disabled={sending || !inputText.trim()}>
                   {sending ? '...' : 'Отправить'}
                 </button>
               </div>
@@ -1046,384 +825,110 @@ export default function OmnichannelDashboard({ userSlug }: { userSlug: string })
       </div>
 
       {/* ─── RIGHT PANEL: Controls & Actions ─── */}
-      <div
-        className="w-[260px] flex-shrink-0 h-full border-l border-slate-800 flex flex-col"
-        style={{ background: '#0d1117' }}
-      >
+      <div className="w-[260px] flex-shrink-0 h-full border-l border-slate-800 flex flex-col" style={{ background: '#0d1117' }}>
         {!activeChannel ? (
-          <div className="flex items-center justify-center h-full text-slate-600 text-sm">
-            Нет выбранного чата
-          </div>
+          <div className="flex items-center justify-center h-full text-slate-600 text-sm">Нет выбранного чата</div>
         ) : (
           <>
-            {/* Contact card */}
             <div className="px-4 py-5 text-center border-b border-slate-800">
-              {activeChannel.avatarUrl ? (
-                <img
-                  src={activeChannel.avatarUrl}
-                  alt={activeChannel.name}
-                  className="w-14 h-14 rounded-full mx-auto object-cover mb-2.5"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = 'none';
-                    const fallback = (e.target as HTMLImageElement).nextElementSibling as HTMLElement;
-                    if (fallback) fallback.style.display = 'flex';
-                  }}
-                />
-              ) : null}
-              <div
-                className={`w-14 h-14 rounded-full mx-auto flex items-center justify-center text-lg font-bold mb-2.5 text-white ${activeChannel.avatarUrl ? 'hidden' : ''}`}
-                style={{ background: getAvatarColor(activeChannel.name) }}
-              >
+              <div className="w-14 h-14 rounded-full mx-auto flex items-center justify-center text-xl font-bold mb-2.5"
+                style={{ background: getAvatarColor(activeChannel.name), color: '#fff' }}>
                 {activeChannel.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
               </div>
-              <div className="text-sm font-semibold">{activeChannel.name}</div>
-              <div className="flex items-center justify-center gap-1.5 mt-1.5">
+              <div className="font-semibold text-sm">{activeChannel.name}</div>
+              <div className="text-xs text-slate-500 mt-1 flex items-center justify-center gap-1.5">
                 <SourceBadge source={activeChannel.source} />
-                <span className="text-xs text-slate-500">{SOURCES[activeChannel.source]?.name}</span>
               </div>
-              <div className="text-[10px] text-slate-600 mt-1">{activeChannel.externalId}</div>
             </div>
 
-            {/* Actions */}
-            <div className="px-4 py-4 flex-1 overflow-y-auto">
-              <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Действия</div>
-              <div className="space-y-2">
-                <button
-                  onClick={() => setShowAddChatModal(true)}
-                  className="w-full flex items-center gap-2.5 py-2.5 px-3 rounded-lg text-sm text-slate-300 hover:bg-[#1a3548] border border-slate-700 hover:border-[#229ED9]/30 transition-colors"
-                >
-                  <span className="text-lg">✈️</span>
-                  <div className="text-left">
-                    <div className="font-medium">Добавить Telegram</div>
-                    <div className="text-[10px] text-slate-500">Подключить чат или группу</div>
+            {/* Quick actions */}
+            <div className="p-4 space-y-2">
+              <button onClick={syncAll} disabled={syncing}
+                className="w-full bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-300 rounded-lg px-3 py-2 text-xs font-medium transition-colors">
+                {syncing ? 'Синхронизация...' : 'Синхронизировать все'}
+              </button>
+            </div>
+
+            {/* Connected portals info */}
+            <div className="flex-1 p-4 space-y-2">
+              <div className="text-xs text-slate-500 font-medium mb-2">Подключённые порталы</div>
+              {Object.entries(BITRIX_PORTALS).map(([key, portal]) => {
+                const isConfigured = webhookConfig?.[key]?.webhookUrl?.trim();
+                return (
+                  <div key={key} className="flex items-center gap-2 text-xs">
+                    <div className="w-2 h-2 rounded-full" style={{ background: isConfigured ? '#22c55e' : '#64748b' }} />
+                    <span className={isConfigured ? 'text-slate-300' : 'text-slate-600'}>{portal.label}</span>
+                    {isConfigured && <span className="text-slate-600 ml-auto">ID {extractWebhookUserId(webhookConfig[key].webhookUrl)}</span>}
                   </div>
-                </button>
+                );
+              })}
+            </div>
 
-                {getBitrixDomain(activeChannel.source) && (
-                  <a
-                    href={`https://${getBitrixDomain(activeChannel.source)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full flex items-center gap-2.5 py-2.5 px-3 rounded-lg text-sm text-slate-300 hover:bg-[#1e3a5f] border border-slate-700 hover:border-[#3B8BD4]/30 transition-colors"
-                  >
-                    <span className="text-lg">🏢</span>
-                    <div className="text-left">
-                      <div className="font-medium">Открыть в Битрикс24</div>
-                      <div className="text-[10px] text-slate-500">Перейти к чату в портале</div>
-                    </div>
-                  </a>
-                )}
-
-                {activeChannel.source.startsWith('bitrix') && (
-                  <button
-                    onClick={() => syncBitrix(activeChannel.source)}
-                    disabled={syncing}
-                    className="w-full flex items-center gap-2.5 py-2.5 px-3 rounded-lg text-sm text-slate-300 hover:bg-slate-800 border border-slate-700 transition-colors disabled:opacity-50"
-                  >
-                    <span className="text-lg">{syncing ? '⏳' : '🔄'}</span>
-                    <div className="text-left">
-                      <div className="font-medium">Синхронизировать</div>
-                      <div className="text-[10px] text-slate-500">Обновить сообщения</div>
-                    </div>
-                  </button>
-                )}
-              </div>
-
-              {/* Chat details */}
-              <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 mt-5">Детали чата</div>
-              <div className="space-y-2 text-sm text-slate-400">
-                <div className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: SOURCES[activeChannel.source]?.color || '#666' }} />
-                  <span className="truncate">Сообщений: {activeChannel.messageCount || messages.length}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: activeChannel.unreadCount > 0 ? '#ef4444' : '#666' }} />
-                  <span className="truncate">Непрочитанных: {activeChannel.unreadCount}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#666' }} />
-                  <span className="truncate">Участников: {uniqueSenders}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#666' }} />
-                  <span className="truncate">Активность: {formatTimeFull(activeChannel.lastActivity)}</span>
-                </div>
-              </div>
+            {/* Disconnect button */}
+            <div className="p-4 border-t border-slate-800">
+              <button onClick={onDisconnect}
+                className="w-full text-red-400 hover:text-red-300 hover:bg-red-400/10 rounded-lg px-3 py-2 text-xs font-medium transition-colors">
+                Отключить вебхуки
+              </button>
             </div>
           </>
         )}
       </div>
 
-      {/* ─── SETTINGS MODAL ─── */}
+      {/* ─── Settings Modal ─── */}
       {showSettingsModal && (
-        <div
-          className="fixed inset-0 bg-black/70 flex items-center justify-center z-50"
-          onClick={() => setShowSettingsModal(false)}
-        >
-          <div
-            className="bg-[#151b28] border border-slate-700 rounded-2xl p-6 w-[520px] max-w-[90vw] max-h-[85vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-5">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center text-slate-400">
-                  <FilterIcon size={20} />
-                </div>
-                <div>
-                  <div className="text-lg font-bold text-white">Настройки дашборда</div>
-                  <div className="text-xs text-slate-500">{APP_VERSION}</div>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowSettingsModal(false)}
-                className="w-8 h-8 rounded-lg bg-slate-800 text-slate-400 flex items-center justify-center hover:bg-slate-700 hover:text-white transition-colors text-sm"
-              >
-                ✕
-              </button>
-            </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setShowSettingsModal(false)}>
+          <div className="bg-[#161b22] border border-slate-700 rounded-2xl w-full max-w-md mx-4 max-h-[80vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}>
+            <div className="p-5">
+              <h3 className="text-lg font-bold mb-4">Настройки</h3>
 
-            {/* Operator Identity */}
-            <div className="mb-5">
-              <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Оператор</div>
-              <div className="flex items-center gap-3 bg-[#1e293b] rounded-xl p-3 border border-slate-700">
-                <SenderAvatar name={currentUserName || 'Оператор'} size={36} />
-                <div className="flex-1">
-                  <div className="text-sm font-medium text-white">{currentUserName || 'Не указано'}</div>
-                  <div className="text-[11px] text-slate-500">Ваши сообщения подсвечены зелёным</div>
-                </div>
-                <button
-                  onClick={() => { setShowSettingsModal(false); setShowNameSelector(true); }}
-                  className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-700 text-slate-300 hover:bg-slate-600 transition-colors"
-                >
-                  Изменить
-                </button>
+              {/* Connected portals */}
+              <div className="space-y-3 mb-5">
+                <h4 className="text-sm font-medium text-slate-400">Подключённые порталы</h4>
+                {Object.entries(BITRIX_PORTALS).map(([key, portal]) => {
+                  const url = webhookConfig?.[key]?.webhookUrl;
+                  const userId = url ? extractWebhookUserId(url) : null;
+                  return (
+                    <div key={key} className="bg-[#0d1117] rounded-lg p-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="w-2.5 h-2.5 rounded-full" style={{ background: url ? '#22c55e' : '#64748b' }} />
+                        <span className="text-sm font-medium">{portal.label}</span>
+                        {userId && <span className="text-xs text-slate-500 ml-auto">User {userId}</span>}
+                      </div>
+                      <div className="text-xs text-slate-600 font-mono truncate">
+                        {url ? `${url.substring(0, 40)}...` : 'Не настроен'}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            </div>
 
-            {/* Sync */}
-            <div className="mb-5">
-              <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Синхронизация</div>
-              <div className="space-y-2">
-                <button
-                  onClick={syncAll}
-                  disabled={syncing}
-                  className="w-full flex items-center gap-3 py-2.5 px-3 rounded-xl text-sm text-slate-300 hover:bg-slate-800 border border-slate-700 transition-colors disabled:opacity-50"
-                >
-                  <span className="text-lg">{syncing ? '⏳' : '🔄'}</span>
-                  <div className="text-left">
-                    <div className="font-medium">Синхронизировать все порталы</div>
-                    <div className="text-[10px] text-slate-500">Обновить чаты и сообщения из Битрикс24</div>
-                  </div>
-                </button>
-              </div>
-            </div>
-
-            {/* Telegram Bot */}
-            <div className="mb-5">
-              <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Telegram бот</div>
-              <div className="space-y-2">
+              {/* Telegram section */}
+              <div className="space-y-3 mb-5">
+                <h4 className="text-sm font-medium text-slate-400">Telegram бот</h4>
                 <div className="flex gap-2">
-                  <button
-                    onClick={setupTelegramWebhook}
-                    disabled={tgWebhookLoading}
-                    className="px-3 py-1.5 rounded-lg text-xs font-medium bg-[#229ED9] hover:bg-[#1b8ac4] text-white transition-colors disabled:opacity-50"
-                  >
-                    {tgWebhookLoading ? 'Настройка...' : 'Настроить Webhook'}
+                  <button onClick={setupTelegramWebhook} disabled={tgWebhookLoading}
+                    className="flex-1 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-300 rounded-lg px-3 py-2 text-xs font-medium transition-colors">
+                    Установить webhook
                   </button>
-                  <button
-                    onClick={checkTgWebhook}
-                    className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 transition-colors"
-                  >
-                    Проверить
-                  </button>
-                  <button
-                    onClick={fetchTelegramHistory}
-                    disabled={tgFetching}
-                    className="px-3 py-1.5 rounded-lg text-xs font-medium bg-green-700 hover:bg-green-600 text-white transition-colors disabled:opacity-50"
-                  >
-                    {tgFetching ? 'Загрузка...' : 'Загрузить историю'}
+                  <button onClick={checkTgWebhook}
+                    className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg px-3 py-2 text-xs font-medium transition-colors">
+                    Проверить статус
                   </button>
                 </div>
-                {tgWebhookStatus && (
-                  <div className="text-xs text-slate-400 bg-slate-800/50 rounded-lg p-2">
-                    {tgWebhookStatus}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Connected Portals */}
-            <div className="mb-5">
-              <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Подключённые порталы</div>
-              <div className="space-y-2">
-                <div className="flex items-center gap-3 bg-[#1e293b] rounded-xl p-3 border border-slate-700">
-                  <span className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold" style={{ background: '#1e3a5f', color: '#3B8BD4' }}>1</span>
-                  <div className="flex-1">
-                    <div className="text-sm font-medium text-white">АтиЛаб (Наш Битрикс)</div>
-                    <div className="text-[10px] text-slate-500">1c-cms.bitrix24.ru · Чтение и запись</div>
-                  </div>
-                  <span className="w-2 h-2 rounded-full bg-green-500" title="Активен" />
-                </div>
-                <div className="flex items-center gap-3 bg-[#1e293b] rounded-xl p-3 border border-slate-700">
-                  <span className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold" style={{ background: '#1a3d2e', color: '#1D9E75' }}>2</span>
-                  <div className="flex-1">
-                    <div className="text-sm font-medium text-white">Дакар</div>
-                    <div className="text-[10px] text-slate-500">dakar.bitrix24.ru · Чтение и запись</div>
-                  </div>
-                  <span className="w-2 h-2 rounded-full bg-green-500" title="Активен" />
-                </div>
-                <div className="flex items-center gap-3 bg-[#1e293b] rounded-xl p-3 border border-slate-700 opacity-50">
-                  <span className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold" style={{ background: '#1a3548', color: '#229ED9' }}>T</span>
-                  <div className="flex-1">
-                    <div className="text-sm font-medium text-white">Telegram</div>
-                    <div className="text-[10px] text-slate-500">Бот подключён · Ожидание webhook</div>
-                  </div>
-                  <span className="w-2 h-2 rounded-full bg-yellow-500" title="Ожидание" />
-                </div>
-                <div className="flex items-center gap-3 bg-[#1e293b] rounded-xl p-3 border border-slate-700 opacity-30">
-                  <span className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold" style={{ background: '#3d2a10', color: '#FF6B00' }}>M</span>
-                  <div className="flex-1">
-                    <div className="text-sm font-medium text-white">МАКС</div>
-                    <div className="text-[10px] text-slate-500">Не подключён</div>
-                  </div>
-                  <span className="w-2 h-2 rounded-full bg-slate-600" title="Неактивен" />
-                </div>
-              </div>
-            </div>
-
-            {/* About */}
-            <div className="text-center text-[11px] text-slate-600 border-t border-slate-800 pt-4">
-              Omnichannel Dashboard · {APP_VERSION}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ─── WHO ARE YOU MODAL ─── */}
-      {showNameSelector && (
-        <div
-          className="fixed inset-0 bg-black/70 flex items-center justify-center z-50"
-          onClick={() => { if (currentUserName) setShowNameSelector(false); }}
-        >
-          <div
-            className="bg-[#151b28] border border-slate-700 rounded-2xl p-6 w-[400px] max-w-[90vw]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="text-lg font-bold text-white mb-1">Как вас зовут?</div>
-            <div className="text-sm text-slate-400 mb-4">
-              Введите ваше имя так, как оно отображается в чатах. 
-              Ваши сообщения будут показаны <span className="text-green-400 font-medium">зелёным</span> цветом.
-            </div>
-            {messages.length > 0 && (
-              <div className="mb-3">
-                <div className="text-xs text-slate-500 mb-1.5">Участники чата:</div>
-                <div className="flex flex-wrap gap-1.5">
-                  {[...new Set(messages.map(m => m.senderName))].slice(0, 8).map(name => (
-                    <button
-                      key={name}
-                      className={`px-2.5 py-1 rounded-lg text-xs transition-colors ${
-                        userNameInput.toLowerCase().trim() === name.toLowerCase().trim()
-                          ? 'bg-green-600/30 text-green-400 border border-green-500/50'
-                          : 'bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700'
-                      }`}
-                      onClick={() => setUserNameInput(name)}
-                    >
-                      {name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-            <input
-              className="w-full bg-[#1e293b] border border-slate-600 rounded-lg text-white px-4 py-2.5 text-sm outline-none focus:border-green-500 placeholder-slate-500 mb-4"
-              placeholder="Введите ваше имя..."
-              value={userNameInput}
-              onChange={(e) => setUserNameInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && userNameInput.trim()) {
-                  setCurrentUserName(userNameInput.trim());
-                  localStorage.setItem('omnichannel_current_user', userNameInput.trim());
-                  setShowNameSelector(false);
-                }
-              }}
-              autoFocus
-            />
-            <div className="flex justify-end gap-2">
-              {currentUserName && (
-                <button
-                  className="px-4 py-2 rounded-lg text-sm text-slate-400 hover:text-white transition-colors"
-                  onClick={() => setShowNameSelector(false)}
-                >
-                  Отмена
+                <button onClick={fetchTelegramHistory} disabled={tgFetching}
+                  className="w-full bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-300 rounded-lg px-3 py-2 text-xs font-medium transition-colors">
+                  {tgFetching ? 'Загрузка...' : 'Загрузить историю сообщений'}
                 </button>
-              )}
-              <button
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  userNameInput.trim()
-                    ? 'bg-green-600 hover:bg-green-500 text-white'
-                    : 'bg-slate-700 text-slate-500 cursor-not-allowed'
-                }`}
-                disabled={!userNameInput.trim()}
-                onClick={() => {
-                  if (userNameInput.trim()) {
-                    setCurrentUserName(userNameInput.trim());
-                    localStorage.setItem('omnichannel_current_user', userNameInput.trim());
-                    setShowNameSelector(false);
-                  }
-                }}
-              >
-                Сохранить
+                {tgWebhookStatus && <div className="text-xs text-slate-400">{tgWebhookStatus}</div>}
+              </div>
+
+              {/* Disconnect */}
+              <button onClick={() => { setShowSettingsModal(false); onDisconnect(); }}
+                className="w-full bg-red-600/20 hover:bg-red-600/30 text-red-400 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors">
+                Отключить вебхуки и выйти
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ─── ADD CHAT MODAL ─── */}
-      {showAddChatModal && (
-        <div
-          className="fixed inset-0 bg-black/70 flex items-center justify-center z-50"
-          onClick={() => setShowAddChatModal(false)}
-        >
-          <div
-            className="bg-[#151b28] border border-slate-700 rounded-2xl p-6 w-[420px] max-w-[90vw]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-5">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#1a3548] flex items-center justify-center text-xl">✈️</div>
-                <div className="text-lg font-bold text-white">Добавить Telegram чат</div>
-              </div>
-              <button
-                onClick={() => setShowAddChatModal(false)}
-                className="w-8 h-8 rounded-lg bg-slate-800 text-slate-400 flex items-center justify-center hover:bg-slate-700 hover:text-white transition-colors text-sm"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div className="bg-[#1e293b] rounded-xl p-4 border border-slate-700">
-                <div className="text-sm font-medium text-white mb-2">Как подключить чат</div>
-                <ol className="text-sm text-slate-300 space-y-2 list-decimal list-inside">
-                  <li>Откройте Telegram группу или чат</li>
-                  <li>Добавьте бота <span className="text-[#229ED9] font-semibold">@our_omnichannel_bot</span> в участники</li>
-                  <li>Дайте боту права на чтение сообщений</li>
-                  <li>Чат автоматически появится в дашборде в группе «ТГ Чаты»</li>
-                </ol>
-              </div>
-
-              <div className="bg-[#1e293b] rounded-xl p-4 border border-slate-700">
-                <div className="text-sm font-medium text-white mb-2">Как подключить личные сообщения</div>
-                <ol className="text-sm text-slate-300 space-y-2 list-decimal list-inside">
-                  <li>Перешлите любое сообщение от контакта боту <span className="text-[#229ED9] font-semibold">@our_omnichannel_bot</span></li>
-                  <li>Бот начнёт получать новые сообщения из этого чата</li>
-                </ol>
-              </div>
-
-              <div className="text-[11px] text-slate-500 text-center">
-                Бот видит только новые сообщения после добавления. История недоступна.
-              </div>
             </div>
           </div>
         </div>

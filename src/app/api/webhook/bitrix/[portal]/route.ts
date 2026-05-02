@@ -1,9 +1,10 @@
 // Webhook endpoint for Bitrix24 outgoing webhooks
 // URL: /api/webhook/bitrix/bitrix1 or /api/webhook/bitrix/bitrix2
 // Handles: IM events (OnImMessageAdd), Task events (OnTaskAdd, OnTaskUpdate, OnTaskCommentAdd)
+// Token verification is now disabled — outgoing webhooks are configured per-user
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyBitrixWebhookToken, getBitrixDialoInfo } from '@/lib/bitrix';
 import { normalizeBitrixMessage } from '@/lib/gateway';
+import { BITRIX_PORTALS } from '@/lib/sources';
 
 export async function POST(
   request: NextRequest,
@@ -15,12 +16,6 @@ export async function POST(
   const event = body.event || body.EVENT || 'unknown';
   console.log(`[Bitrix Webhook] Portal: ${portal}, Event: ${event}`);
 
-  // Verify authenticity (if token present)
-  const token = body.auth?.application_token || '';
-  if (token && !verifyBitrixWebhookToken(portal, token)) {
-    console.warn(`[Bitrix Webhook] Token mismatch for portal ${portal}. Got: ${token.substring(0, 8)}...`);
-  }
-
   try {
     // ─── IM Message Event (OnImMessageAdd) ───
     if (event === 'OnImMessageAdd' || event === 'ONIMMESSAGEADD') {
@@ -29,8 +24,6 @@ export async function POST(
         return NextResponse.json({ ok: true, message: 'No message to process' });
       }
 
-      // For now, we just log it — the polling will pick it up on next cycle
-      // In the future, we could push this to a real-time channel (WebSocket/SSE)
       console.log(`[Bitrix Webhook] IM message from ${normalized.senderName}: ${normalized.text.substring(0, 50)}`);
       return NextResponse.json({ ok: true });
     }

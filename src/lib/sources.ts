@@ -1,4 +1,6 @@
 // Source configuration for all connected platforms
+// Webhook URLs are NO LONGER hardcoded — each user enters their own via the setup form
+// This file only contains portal metadata (labels, colors, domains)
 
 export interface SourceInfo {
   label: string;
@@ -17,97 +19,26 @@ export const SOURCES: Record<string, SourceInfo> = {
   whatsapp:{ label: 'WA', name: 'WhatsApp', color: '#25D366', bg: '#1a3d24', icon: '📱' },
 };
 
-// Bitrix24 portal configurations
-// We use TWO webhook URLs per portal:
-//   webhookUrl (IM)  — has im/imconnector/imopenlines scope for chat operations
-//   tasksWebhookUrl  — has task/tasks scope for task operations
+// Bitrix24 portal metadata — NO webhook URLs stored here
+// Each user provides their own webhooks via the setup form
 export const BITRIX_PORTALS = {
   bitrix1: {
-    label: 'Наш Битрикс',
+    label: 'АтиЛаб (Наш Битрикс)',
     domain: '1c-cms.bitrix24.ru',
-    // IM webhook — has im, imconnector, imopenlines scope
-    webhookUrl: 'https://1c-cms.bitrix24.ru/rest/116/962u568uyeakin6y/',
-    // Tasks webhook — has task, tasks, tasks_extended, disk, lists scope
-    tasksWebhookUrl: 'https://1c-cms.bitrix24.ru/rest/116/es8z4taxj1hzlp8b/',
-    webhookUserId: 116, // Webhook user ID — messages from this user are "our" operator messages
-    outgoingToken: 'e3ecp1omrqwo75qqe2nng9e3m9y1xiym',
     color: '#3B8BD4',
-    readOnly: false, // Full access - testing portal
-    portalType: 'task', // Include task chats
+    readOnly: false,
+    portalType: 'task',
+    description: 'Основной портал компании',
   },
   bitrix2: {
     label: 'Дакар',
     domain: 'dakar.bitrix24.ru',
-    // IM webhook — has im, imconnector, imopenlines scope
-    webhookUrl: 'https://dakar.bitrix24.ru/rest/103557/bkc0fjrp9nagpj10/',
-    // Tasks webhook — has crm, task, tasks, tasks_extended, lists scope
-    tasksWebhookUrl: 'https://dakar.bitrix24.ru/rest/103557/7vdwpqb1buur4j0x/',
-    webhookUserId: 103557, // Webhook user ID — messages from this user are "our" operator messages
-    outgoingToken: '9xwao4exygd6pm2b699qma5ouvfkuw8i',
     color: '#1D9E75',
-    readOnly: false, // Full access - can send messages
-    portalType: 'task', // Include task chats
+    readOnly: false,
+    portalType: 'task',
+    description: 'Портал Дакар',
   },
 };
-
-// ─── Multi-User Configuration ───
-// Each dashboard user gets their own URL: /u/<slug>
-// They see only their Bitrix24 dialogs (via their own webhook)
-// Telegram chats are shared (same bot)
-
-export interface DashboardUser {
-  name: string;           // Display name
-  slug: string;           // URL slug: /u/andrey, /u/vladimir
-  bitrixUserId: number;   // This user's ID in Bitrix24 — their messages show as "outgoing"
-  portals: Record<string, {
-    webhookUrl: string;
-    tasksWebhookUrl: string;
-  }>;
-}
-
-export const DASHBOARD_USERS: Record<string, DashboardUser> = {
-  andrey: {
-    name: 'Андрей',
-    slug: 'andrey',
-    bitrixUserId: 116,
-    portals: {
-      bitrix1: {
-        webhookUrl: 'https://1c-cms.bitrix24.ru/rest/116/962u568uyeakin6y/',
-        tasksWebhookUrl: 'https://1c-cms.bitrix24.ru/rest/116/es8z4taxj1hzlp8b/',
-      },
-      bitrix2: {
-        webhookUrl: 'https://dakar.bitrix24.ru/rest/103557/bkc0fjrp9nagpj10/',
-        tasksWebhookUrl: 'https://dakar.bitrix24.ru/rest/103557/7vdwpqb1buur4j0x/',
-      },
-    },
-  },
-  vladimir: {
-    name: 'Владимир Макаров',
-    slug: 'vladimir',
-    bitrixUserId: 1,
-    portals: {
-      bitrix1: {
-        // Same webhook as Andrey for now — when Makarov gets his own webhook, replace here
-        webhookUrl: 'https://1c-cms.bitrix24.ru/rest/116/962u568uyeakin6y/',
-        tasksWebhookUrl: 'https://1c-cms.bitrix24.ru/rest/116/es8z4taxj1hzlp8b/',
-      },
-      bitrix2: {
-        webhookUrl: 'https://dakar.bitrix24.ru/rest/103557/bkc0fjrp9nagpj10/',
-        tasksWebhookUrl: 'https://dakar.bitrix24.ru/rest/103557/7vdwpqb1buur4j0x/',
-      },
-    },
-  },
-};
-
-// Helper: validate user slug
-export function isValidUser(slug: string): boolean {
-  return slug in DASHBOARD_USERS;
-}
-
-// Helper: get user config
-export function getDashboardUser(slug: string): DashboardUser | undefined {
-  return DASHBOARD_USERS[slug];
-}
 
 // Normalized message format - ALL sources convert to this
 export interface NormalizedMessage {

@@ -1,17 +1,17 @@
-// Send a message from operator to a channel
-// Supports ?user=andrey|vladimir query param for per-user webhooks
+// Send a message from operator to a channel - reads webhook config from header
 import { NextRequest, NextResponse } from 'next/server';
 import { sendBitrixMessage } from '@/lib/bitrix';
 import { sendTelegramMessage } from '@/lib/telegram';
-import { addMessage, getChannel, flushToBlob } from '@/lib/telegram-store';
-import { BITRIX_PORTALS, DASHBOARD_USERS } from '@/lib/sources';
+import { addMessage, flushToBlob } from '@/lib/telegram-store';
+import { parseWebhookHeader } from '@/lib/webhook-config';
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
   const { channelId, text, operatorId } = body;
 
-  // Extract user slug from query params
-  const userSlug = request.nextUrl.searchParams.get('user') || undefined;
+  // Read webhook config from header
+  const webhookHeader = request.headers.get('X-Bitrix-Webhooks');
+  const webhookConfig = parseWebhookHeader(webhookHeader);
 
   if (!channelId || !text) {
     return NextResponse.json({ error: 'channelId и text обязательны' }, { status: 400 });
@@ -30,7 +30,6 @@ export async function POST(request: NextRequest) {
       sent = !!result;
       if (!sent) errorMessage = 'Не удалось отправить в Telegram';
 
-      // Save to persistent store
       if (sent) {
         await addMessage({
           channelId,
@@ -39,7 +38,6 @@ export async function POST(request: NextRequest) {
           text,
           externalId: `tg_sent_${Date.now()}`,
         });
-        // Force save since we just sent a message
         flushToBlob().catch(() => {});
       }
     }
@@ -48,16 +46,16 @@ export async function POST(request: NextRequest) {
       const bitrixMatch = channelId.match(/^bx_(bitrix\d+)_(.+)$/);
       if (bitrixMatch) {
         source = bitrixMatch[1];
-        const portal = BITRIX_PORTALS[source as keyof typeof BITRIX_PORTALS];
 
-        if (portal?.readOnly) {
+        // Check if this portal has a configured webhook
+        if (!webhookConfig?.[source]?.webhookUrl?.trim()) {
           return NextResponse.json({
-            error: 'Этот портал только для чтения (стелс-режим)'
+            error: `Портал ${source} не настроен — введите вебхук в настройках`
           }, { status: 403 });
         }
 
         const dialogId = channelId.replace(`bx_${source}_`, '');
-        const result = await sendBitrixMessage(source, dialogId, text, userSlug);
+        const result = await sendBitrixMessage(source, dialogId, text, webhookConfig);
 
         if (result && !result.error) {
           sent = true;

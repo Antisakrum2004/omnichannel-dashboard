@@ -50,6 +50,65 @@ export const BITRIX_PORTALS = {
   },
 };
 
+// ─── Multi-User Configuration ───
+// Each dashboard user gets their own URL: /u/<slug>
+// They see only their Bitrix24 dialogs (via their own webhook)
+// Telegram chats are shared (same bot)
+
+export interface DashboardUser {
+  name: string;           // Display name
+  slug: string;           // URL slug: /u/andrey, /u/vladimir
+  bitrixUserId: number;   // This user's ID in Bitrix24 — their messages show as "outgoing"
+  portals: Record<string, {
+    webhookUrl: string;
+    tasksWebhookUrl: string;
+  }>;
+}
+
+export const DASHBOARD_USERS: Record<string, DashboardUser> = {
+  andrey: {
+    name: 'Андрей',
+    slug: 'andrey',
+    bitrixUserId: 116,
+    portals: {
+      bitrix1: {
+        webhookUrl: 'https://1c-cms.bitrix24.ru/rest/116/962u568uyeakin6y/',
+        tasksWebhookUrl: 'https://1c-cms.bitrix24.ru/rest/116/es8z4taxj1hzlp8b/',
+      },
+      bitrix2: {
+        webhookUrl: 'https://dakar.bitrix24.ru/rest/103557/bkc0fjrp9nagpj10/',
+        tasksWebhookUrl: 'https://dakar.bitrix24.ru/rest/103557/7vdwpqb1buur4j0x/',
+      },
+    },
+  },
+  vladimir: {
+    name: 'Владимир Макаров',
+    slug: 'vladimir',
+    bitrixUserId: 1,
+    portals: {
+      bitrix1: {
+        // Same webhook as Andrey for now — when Makarov gets his own webhook, replace here
+        webhookUrl: 'https://1c-cms.bitrix24.ru/rest/116/962u568uyeakin6y/',
+        tasksWebhookUrl: 'https://1c-cms.bitrix24.ru/rest/116/es8z4taxj1hzlp8b/',
+      },
+      bitrix2: {
+        webhookUrl: 'https://dakar.bitrix24.ru/rest/103557/bkc0fjrp9nagpj10/',
+        tasksWebhookUrl: 'https://dakar.bitrix24.ru/rest/103557/7vdwpqb1buur4j0x/',
+      },
+    },
+  },
+};
+
+// Helper: validate user slug
+export function isValidUser(slug: string): boolean {
+  return slug in DASHBOARD_USERS;
+}
+
+// Helper: get user config
+export function getDashboardUser(slug: string): DashboardUser | undefined {
+  return DASHBOARD_USERS[slug];
+}
+
 // Normalized message format - ALL sources convert to this
 export interface NormalizedMessage {
   source: string;

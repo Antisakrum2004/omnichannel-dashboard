@@ -1,13 +1,17 @@
 // Send a message from operator to a channel
+// Supports ?user=andrey|vladimir query param for per-user webhooks
 import { NextRequest, NextResponse } from 'next/server';
 import { sendBitrixMessage } from '@/lib/bitrix';
 import { sendTelegramMessage } from '@/lib/telegram';
 import { addMessage, getChannel, flushToBlob } from '@/lib/telegram-store';
-import { BITRIX_PORTALS } from '@/lib/sources';
+import { BITRIX_PORTALS, DASHBOARD_USERS } from '@/lib/sources';
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
   const { channelId, text, operatorId } = body;
+
+  // Extract user slug from query params
+  const userSlug = request.nextUrl.searchParams.get('user') || undefined;
 
   if (!channelId || !text) {
     return NextResponse.json({ error: 'channelId и text обязательны' }, { status: 400 });
@@ -53,7 +57,7 @@ export async function POST(request: NextRequest) {
         }
 
         const dialogId = channelId.replace(`bx_${source}_`, '');
-        const result = await sendBitrixMessage(source, dialogId, text);
+        const result = await sendBitrixMessage(source, dialogId, text, userSlug);
 
         if (result && !result.error) {
           sent = true;

@@ -1,7 +1,8 @@
 // Get messages for a specific channel - supports Bitrix API and Telegram persistent store
+// Supports ?user=andrey|vladimir query param for per-user sender detection
 import { NextRequest, NextResponse } from 'next/server';
-import { getBitrixMessages, getBitrixTaskComments } from '@/lib/bitrix';
-import { BITRIX_PORTALS } from '@/lib/sources';
+import { getBitrixMessages, getBitrixTaskComments, getWebhookUserId } from '@/lib/bitrix';
+import { BITRIX_PORTALS, DASHBOARD_USERS } from '@/lib/sources';
 import { getMessages as getTgMessages, resetUnread } from '@/lib/telegram-store';
 
 export async function GET(
@@ -9,6 +10,9 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+
+  // Extract user slug from query params
+  const userSlug = request.nextUrl.searchParams.get('user') || undefined;
 
   try {
     // ─── Telegram channel ───
@@ -24,11 +28,11 @@ export async function GET(
     if (taskMatch) {
       const portalKey = taskMatch[1];
       const taskId = taskMatch[2];
-      const portal = BITRIX_PORTALS[portalKey as keyof typeof BITRIX_PORTALS];
-      const webhookUserId = portal?.webhookUserId;
+      // Use user-specific webhookUserId for sender detection
+      const webhookUserId = getWebhookUserId(userSlug, portalKey);
 
       try {
-        const result = await getBitrixTaskComments(portalKey, taskId);
+        const result = await getBitrixTaskComments(portalKey, taskId, userSlug);
         if (result && Array.isArray(result)) {
           const messages = result.map((comment: any) => {
             const authorName = comment.AUTHOR_NAME || comment.authorName || `User ${comment.AUTHOR_ID || comment.authorId}`;
@@ -102,8 +106,8 @@ export async function GET(
       const portalKey = bitrixMatch[1];
       const dialogPart = bitrixMatch[2];
 
-      const portal = BITRIX_PORTALS[portalKey as keyof typeof BITRIX_PORTALS];
-      const webhookUserId = portal?.webhookUserId;
+      // Use user-specific webhookUserId for sender detection
+      const webhookUserId = getWebhookUserId(userSlug, portalKey);
 
       let dialogId = dialogPart;
       if (!isNaN(Number(dialogPart))) {
@@ -111,7 +115,7 @@ export async function GET(
       }
 
       try {
-        const result = await getBitrixMessages(portalKey, dialogId, 30);
+        const result = await getBitrixMessages(portalKey, dialogId, 30, userSlug);
         if (result?.messages) {
           const filesLookup: Record<number, any> = {};
           if (Array.isArray(result.files)) {

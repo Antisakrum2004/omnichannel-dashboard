@@ -1,8 +1,9 @@
 // Get all channels - tries DB first, falls back to Bitrix API + Telegram persistent store
-import { NextResponse } from 'next/server';
+// Supports ?user=andrey|vladimir query param for per-user webhooks
+import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { getBitrixDialogs, getBitrixTasks } from '@/lib/bitrix';
-import { BITRIX_PORTALS } from '@/lib/sources';
+import { getBitrixDialogs, getBitrixTasks, getWebhookUserId } from '@/lib/bitrix';
+import { BITRIX_PORTALS, DASHBOARD_USERS } from '@/lib/sources';
 import { getAllChannels as getTgChannels } from '@/lib/telegram-store';
 
 interface ChannelResult {
@@ -18,14 +19,22 @@ interface ChannelResult {
   avatarUrl: string | null;
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  // Extract user slug from query params
+  const userSlug = request.nextUrl.searchParams.get('user') || undefined;
+
+  // Validate user slug if provided
+  if (userSlug && !DASHBOARD_USERS[userSlug]) {
+    return NextResponse.json({ error: 'Invalid user' }, { status: 400 });
+  }
+
   try {
     const channels: ChannelResult[] = [];
 
     // ─── 1. Bitrix24 channels (from API directly) ───
     for (const [portalKey, portal] of Object.entries(BITRIX_PORTALS)) {
       try {
-        const dialogs = await getBitrixDialogs(portalKey, 50);
+        const dialogs = await getBitrixDialogs(portalKey, 50, userSlug);
         if (!dialogs?.items) continue;
 
         for (const item of dialogs.items) {
@@ -50,7 +59,7 @@ export async function GET() {
 
       // ─── 1b. Bitrix24 task chats ───
       try {
-        const tasks = await getBitrixTasks(portalKey, 50);
+        const tasks = await getBitrixTasks(portalKey, 50, userSlug);
         if (tasks?.tasks && Array.isArray(tasks.tasks)) {
           for (const task of tasks.tasks) {
             const taskId = task.id || task.ID;

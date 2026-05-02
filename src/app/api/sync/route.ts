@@ -1,5 +1,6 @@
 // Sync Bitrix24 dialogs to our database
 // Called periodically or on demand
+// Supports ?user=andrey|vladimir query param
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getBitrixDialogs, getBitrixMessages } from '@/lib/bitrix';
@@ -9,13 +10,16 @@ export async function POST(request: NextRequest) {
   const body = await request.json();
   const portalKey = body.portal || 'bitrix1';
 
+  // Extract user slug from query params
+  const userSlug = request.nextUrl.searchParams.get('user') || undefined;
+
   const portal = BITRIX_PORTALS[portalKey as keyof typeof BITRIX_PORTALS];
   if (!portal) {
     return NextResponse.json({ error: 'Unknown portal' }, { status: 400 });
   }
 
   try {
-    const dialogs = await getBitrixDialogs(portalKey, 50);
+    const dialogs = await getBitrixDialogs(portalKey, 50, userSlug);
 
     if (!dialogs?.items) {
       return NextResponse.json({ 
@@ -70,7 +74,7 @@ export async function POST(request: NextRequest) {
           if (hasNewMessage) {
             try {
               const dialogId = item.id?.toString?.() || `chat${item.chat_id}`;
-              const messages = await getBitrixMessages(portalKey, dialogId, 5);
+              const messages = await getBitrixMessages(portalKey, dialogId, 5, userSlug);
               
               if (messages?.messages) {
                 for (const msg of messages.messages) {

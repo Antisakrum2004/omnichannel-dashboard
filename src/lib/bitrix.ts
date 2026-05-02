@@ -1,6 +1,7 @@
 // Bitrix24 API adapter - reads dialogs, messages, sends replies
 // Uses IM webhook for chat operations and Tasks webhook for task operations
 // Supports per-user webhooks via userSlug parameter
+// Also supports USER_ID parameter for admin impersonation
 import { BITRIX_PORTALS, DASHBOARD_USERS } from './sources';
 
 interface BitrixPortal {
@@ -63,6 +64,19 @@ async function bitrixApi(portalKey: string, method: string, params: Record<strin
       return null;
     }
     baseUrl = getWebhookUrl(portal, method);
+  }
+
+  // If userSlug is provided and the user's bitrixUserId differs from the webhook owner,
+  // add USER_ID parameter to the API call. This allows admin users to impersonate
+  // other users in certain Bitrix24 API methods.
+  if (userSlug && DASHBOARD_USERS[userSlug]) {
+    const targetUserId = DASHBOARD_USERS[userSlug].bitrixUserId;
+    const portal = BITRIX_PORTALS[portalKey as keyof typeof BITRIX_PORTALS] as BitrixPortal | undefined;
+    const webhookOwnerId = portal?.webhookUserId || 0;
+    if (targetUserId !== webhookOwnerId && targetUserId > 0) {
+      params = { ...params, USER_ID: targetUserId };
+      console.log(`[BitrixAPI] Impersonating user ${targetUserId} for ${method} (webhook owner: ${webhookOwnerId})`);
+    }
   }
 
   const url = `${baseUrl}${method}`;
@@ -155,6 +169,32 @@ export async function getBitrixOpenLineHistory(portalKey: string, chatId: string
   }, userSlug);
 }
 
+// Get open line sessions filtered by operator
+// This method supports OPERATOR_ID filter which is essential for per-user views
+export async function getBitrixOpenLineSessions(portalKey: string, operatorId?: number, limit = 50, userSlug?: string) {
+  const params: Record<string, any> = {
+    LIMIT: limit,
+  };
+  if (operatorId) {
+    params.FILTER = { OPERATOR_ID: operatorId };
+  }
+  return bitrixApi(portalKey, 'imopenlines.session.list', params, userSlug);
+}
+
+// Get open line session details
+export async function getBitrixOpenLineSessionDetails(portalKey: string, sessionId: number | string, userSlug?: string) {
+  return bitrixApi(portalKey, 'imopenlines.session.get', {
+    SESSION_ID: sessionId,
+  }, userSlug);
+}
+
+// Get chat members — used to filter chats by user membership
+export async function getBitrixChatMembers(portalKey: string, chatId: string | number, userSlug?: string) {
+  return bitrixApi(portalKey, 'im.chat.user.list', {
+    CHAT_ID: typeof chatId === 'string' ? parseInt(chatId) : chatId,
+  }, userSlug);
+}
+
 // Verify outgoing webhook token
 export function verifyBitrixWebhookToken(portalKey: string, token: string): boolean {
   const portal = BITRIX_PORTALS[portalKey as keyof typeof BITRIX_PORTALS] as BitrixPortal | undefined;
@@ -171,10 +211,24 @@ export async function getBitrixTaskComments(portalKey: string, taskId: string | 
 }
 
 // Get list of tasks (most recently active, all statuses)
+// When userSlug is provided and the user's bitrixUserId differs from the webhook owner,
+// adds a RESPONSIBLE_ID filter to only show that user's tasks
 export async function getBitrixTasks(portalKey: string, limit = 50, userSlug?: string) {
-  return bitrixApi(portalKey, 'tasks.task.list', {
+  const params: Record<string, any> = {
     select: ['ID', 'TITLE', 'RESPONSIBLE_NAME', 'DATE_ACTIVITY', 'STATUS'],
     order: { DATE_ACTIVITY: 'DESC' },
     start: 0,
-  }, userSlug);
+  };
+  
+  // If the user needs operator filtering, also filter tasks by responsible person
+  if (userSlug && DASHBOARD_USERS[userSlug]) {
+    const user = DASHBOARD_USERS[userSlug];
+    const portal = BITRIX_PORTALS[portalKey as keyof typeof BITRIX_PORTALS] as BitrixPortal | undefined;
+    const webhookOwnerId = portal?.webhookUserId || 0;
+    if (user.bitrixUserId !== webhookOwnerId) {
+      params.filter = { RESPONSIBLE_ID: user.bitrixUserId };
+    }
+  }
+  
+  return bitrixApi(portalKey, 'tasks.task.list', params, userSlug);
 }
